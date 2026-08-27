@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lafayette Hyundai Used Car Recon</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Manufacturer palette */
+    --navy:#003082;
+    --blue:#4c6ea7;
+    --blue-light:#99accd;
+    --pale:#e5eaf2;
+    --grey:#aaaaaa;
+
+    --bg:#e5eaf2;
+    --panel:#ffffff;
+    --panel-2:#ffffff;
+    --line:#c9d4e6;
+    --line-dark:rgba(153,172,205,.35);
+    --tag:#ffffff;
+    --tag-shadow:#c3d0e6;
+    --ink:#152238;
+    --ink-soft:#5c6c86;
+    --paper-line:#dde5f1;
+    --pale-text:#eef3fa;
+    --muted-dark:#a4b8d6;
+
+    --c-acquired:#aaaaaa;
+    --c-mechanical:#9fb0c4;
+    --c-service:#99accd;
+    --c-detail:#6483ac;
+    --c-photos:#4c6ea7;
+    --c-ready:#003082;
+    --c-sold:#4c6ea7;
+
+    --warn:#c98a3b;
+    --alert:#b1503f;
+    --good:#4f8f6b;
+    --good-bright:#8fd6ab;
+
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;height:100%;}
+  body{-webkit-font-smoothing:antialiased;}
+
+  .display{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.03em;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+
+  #app{display:flex;flex-direction:column;min-height:100vh;}
+
+  /* ---------- header (brand band) ---------- */
+  header{
+    background:var(--navy);
+    border-bottom:1px solid var(--line-dark);
+    padding:14px 22px;
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:10px;
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand-mark{
+    height:40px;width:auto;border-radius:5px;
+    flex-shrink:0;display:block;
+    box-shadow:0 0 0 1px var(--line-dark);
+  }
+  .brand h1{font-size:22px;margin:0;line-height:1;color:var(--pale-text);}
+  .brand p{margin:4px 0 0;font-size:11.5px;color:var(--muted-dark);letter-spacing:.04em;font-family:'Inter';text-transform:none;}
+  .sync{font-size:11.5px;color:var(--muted-dark);text-align:right;font-family:'JetBrains Mono';}
+  .sync b{color:var(--blue-light);font-weight:600;}
+
+  /* ---------- stats strip (brand band) ---------- */
+  .stats{
+    display:flex;gap:1px;background:var(--line-dark);
+    border-bottom:1px solid var(--line-dark);
+    overflow-x:auto;
+  }
+  .stat{
+    background:var(--navy);flex:1;min-width:130px;
+    padding:10px 16px;
+  }
+  .stat .num{font-family:'Oswald';font-size:26px;color:var(--pale-text);line-height:1;}
+  .stat .lbl{font-size:10.5px;color:var(--muted-dark);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;}
+  .stat.hot .num{color:var(--warn);}
+  .stat.off .num{color:var(--blue-light);}
+  .stat.ready .num{color:var(--blue-light);}
+
+  /* ---------- velocity panel (transitional band, stacked metric rows) ---------- */
+  .velocity{
+    display:flex;flex-direction:column;gap:1px;background:var(--line-dark);
+    border-bottom:1px solid var(--line-dark);overflow-x:auto;
+  }
+  .velocity-row{display:flex;align-items:stretch;gap:1px;}
+  .velocity-label{
+    background:var(--blue);padding:10px 16px;display:flex;flex-direction:column;justify-content:center;
+    min-width:170px;
+  }
+  .velocity-label .t{font-family:'Oswald';font-size:12.5px;letter-spacing:.03em;color:var(--pale-text);}
+  .velocity-label .s{font-size:10px;color:var(--pale);margin-top:2px;}
+  .vstat{background:var(--blue);flex:1;min-width:110px;padding:10px 16px;position:relative;}
+  .vstat .num{font-family:'Oswald';font-size:24px;color:var(--pale-text);line-height:1;}
+  .vstat .num small{font-family:'Inter';font-size:12px;color:var(--pale);font-weight:500;}
+  .vstat .lbl{font-size:10.5px;color:var(--pale);text-transform:uppercase;letter-spacing:.06em;margin-top:4px;}
+  .vstat .n{font-size:10px;color:rgba(255,255,255,.7);margin-top:2px;font-family:'JetBrains Mono';}
+
+  /* ---------- toolbar (workspace begins) ---------- */
+  .toolbar{
+    display:flex;align-items:center;gap:10px;padding:12px 22px;
+    background:#ffffff;border-bottom:1px solid var(--line);flex-wrap:wrap;
+  }
+  .search{
+    flex:1;min-width:180px;
+    background:var(--bg);border:1px solid var(--line);border-radius:8px;
+    padding:8px 12px;color:var(--ink);font-size:13.5px;
+  }
+  .search::placeholder{color:var(--ink-soft);}
+  .seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .seg button{
+    background:none;border:none;color:var(--ink-soft);padding:8px 14px;font-size:12.5px;
+    cursor:pointer;font-family:'Inter';font-weight:600;letter-spacing:.02em;
+  }
+  .seg button.active{background:var(--navy);color:var(--pale-text);}
+  .seg.view button.active{background:var(--blue);color:#ffffff;}
+  .btn{
+    background:var(--navy);color:#ffffff;border:none;border-radius:8px;
+    padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer;
+    font-family:'Inter';letter-spacing:.01em;
+  }
+  .btn:hover{filter:brightness(1.15);}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
+  .btn.danger{background:var(--alert);color:white;}
+  .btn.small{padding:6px 10px;font-size:11.5px;border-radius:6px;}
+
+  /* ---------- sync notice banner ---------- */
+  .notice{
+    background:#faf1e0;border-bottom:1px solid #e6d2a8;color:#7a5420;
+    padding:9px 22px;font-size:12.5px;display:none;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .notice.show{display:flex;}
+  .notice b{color:#5c3f14;}
+  .notice .stocks{font-family:'JetBrains Mono';font-size:11.5px;}
+  .notice button{margin-left:auto;background:none;border:1px solid #e6d2a8;color:#7a5420;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;}
+
+  /* ---------- board ---------- */
+  .board-wrap{overflow-x:auto;padding:16px 22px;}
+  .board{display:flex;align-items:flex-start;gap:14px;min-width:max-content;}
+  .ready-grid{
+    display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+    gap:14px;
+  }
+  .col{
+    width:270px;flex-shrink:0;display:flex;flex-direction:column;
+    background:var(--bg);border-radius:12px;border:1px solid var(--line);
+  }
+  .col-head{
+    padding:12px 12px 10px;border-bottom:2px solid var(--stage-color,var(--line));
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .col-head .ttl{display:flex;align-items:center;gap:8px;}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--stage-color);flex-shrink:0;}
+  .col-head h3{font-size:13.5px;margin:0;font-family:'Oswald';letter-spacing:.03em;color:var(--ink);}
+  .col-head .count{
+    font-family:'JetBrains Mono';font-size:12px;color:var(--ink-soft);
+    background:#ffffff;border-radius:12px;padding:2px 8px;
+  }
+  .col-body{padding:10px;display:flex;flex-direction:column;gap:12px;}
+  .col-body::-webkit-scrollbar{width:6px;}
+  .col-body::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+  .empty-col{
+    color:var(--ink-soft);font-size:12px;text-align:center;padding:22px 8px;
+    border:1px dashed var(--line);border-radius:8px;
+  }
+  .empty-board{
+    color:var(--ink-soft);font-size:13.5px;text-align:center;padding:60px 20px;max-width:420px;margin:0 auto;
+  }
+  .empty-board b{color:var(--ink);}
+
+  /* ---------- hang-tag card ---------- */
+  .tag{
+    position:relative;background:var(--tag);color:var(--ink);
+    border-radius:8px;padding:16px 12px 12px;
+    box-shadow:0 3px 0 var(--tag-shadow), 0 6px 10px rgba(0,48,130,.12);
+    cursor:pointer;
+  }
+  .tag:hover{box-shadow:0 3px 0 var(--tag-shadow), 0 8px 16px rgba(0,48,130,.2);}
+  .tag-actions button{cursor:pointer;}
+  .tag::before{
+    content:"";position:absolute;top:-6px;left:50%;transform:translateX(-50%);
+    width:14px;height:14px;border-radius:50%;background:var(--bg);
+    border:2px solid var(--stage-color,var(--line));box-sizing:border-box;
+  }
+  .tag-strip{position:absolute;top:0;left:0;right:0;height:5px;border-radius:8px 8px 0 0;background:var(--stage-color);}
+  .tag-top{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-top:2px;}
+  .stock{font-family:'JetBrains Mono';font-weight:700;font-size:14px;letter-spacing:.01em;}
+  .age-badge{
+    font-family:'JetBrains Mono';font-size:10.5px;padding:2px 6px;border-radius:5px;
+    background:var(--paper-line);color:var(--ink-soft);white-space:nowrap;
+  }
+  .age-badge.warn{background:var(--warn);color:#3a2400;}
+  .age-badge.alert{background:var(--alert);color:white;}
+  .age-badge.good{background:var(--good);color:#eafff0;}
+  .vehicle-name{font-size:13.5px;font-weight:600;margin-top:5px;line-height:1.25;}
+  .vin{font-family:'JetBrains Mono';font-size:10.5px;color:var(--ink-soft);margin-top:2px;}
+  .tag-row{display:flex;align-items:center;gap:6px;margin-top:9px;font-size:11.5px;}
+  .loc-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .loc-dot.on{background:var(--navy);}
+  .loc-dot.off{background:var(--blue-light);}
+  .loc-txt{color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .assigned{font-size:11px;color:var(--ink-soft);margin-top:4px;}
+  .notes{font-size:11px;color:var(--ink-soft);margin-top:6px;font-style:italic;
+    max-height:2.6em;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .exclude-pill{font-size:9.5px;text-transform:uppercase;letter-spacing:.03em;color:#666;background:#e6e6e6;padding:1px 6px;border-radius:4px;margin-top:6px;display:inline-block;}
+  .tag-actions{display:flex;gap:6px;margin-top:11px;border-top:1px dashed var(--paper-line);padding-top:9px;}
+  .tag-actions button{
+    flex:1;border:none;border-radius:6px;padding:6px 4px;font-size:10.5px;font-weight:700;
+    cursor:pointer;font-family:'Inter';text-transform:uppercase;letter-spacing:.02em;
+  }
+  .act-edit{background:var(--paper-line);color:var(--ink);}
+  .act-loc{background:transparent;border:1px solid var(--paper-line) !important;color:var(--ink-soft);}
+  .act-loc[disabled]{opacity:.4;cursor:not-allowed;}
+
+  /* ---------- lock control ---------- */
+  .lock-btn.unlocked{background:var(--navy);border-color:var(--navy);color:#ffffff;}
+
+  /* ---------- sold history ---------- */
+  .sold-wrap{overflow-x:auto;padding:16px 22px;display:none;}
+  table.sold-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.sold-table th{
+    text-align:left;font-family:'Oswald';font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--ink-soft);padding:8px 10px;border-bottom:2px solid var(--line);position:sticky;top:0;background:var(--bg);
+  }
+  table.sold-table td{padding:9px 10px;border-bottom:1px solid var(--line);color:var(--ink);}
+  table.sold-table tr:hover td{background:#ffffff;}
+  .sold-stock{font-family:'JetBrains Mono';font-weight:700;}
+  .metric-pill{font-family:'JetBrains Mono';font-size:11.5px;padding:2px 7px;border-radius:5px;background:#ffffff;border:1px solid var(--line);}
+  .sold-empty{color:var(--ink-soft);font-size:13px;padding:30px 4px;text-align:center;}
+  .row-del{background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:13px;}
+  .row-del:hover{color:var(--alert);}
+
+  /* ---------- modal ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,20,50,.5);display:none;
+    align-items:center;justify-content:center;z-index:50;padding:16px;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:#ffffff;border:1px solid var(--line);border-radius:14px;
+    width:100%;max-width:460px;max-height:90vh;overflow-y:auto;padding:20px;
+  }
+  .modal h2{font-family:'Oswald';font-size:18px;margin:0 0 14px;letter-spacing:.02em;color:var(--ink);}
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;}
+  .field input,.field select,.field textarea{
+    width:100%;background:var(--bg);border:1px solid var(--line);border-radius:7px;
+    padding:9px 10px;color:var(--ink);font-size:13.5px;font-family:'Inter';
+  }
+  .field textarea{resize:vertical;min-height:50px;}
+  .readonly-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:14px;}
+  .readonly-grid .k{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;}
+  .readonly-grid .v{font-size:13px;color:var(--ink);margin-top:2px;font-family:'JetBrains Mono';}
+  .timeline{margin-bottom:16px;}
+  .timeline .th-label{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
+  .timeline-row{display:flex;align-items:flex-start;gap:10px;padding:6px 0;position:relative;}
+  .timeline-row:not(:last-child)::before{
+    content:"";position:absolute;left:5px;top:22px;bottom:-6px;width:1px;background:var(--paper-line);
+  }
+  .timeline-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;margin-top:3px;background:var(--paper-line);border:2px solid var(--paper-line);}
+  .timeline-row.done .timeline-dot{background:var(--navy);border-color:var(--navy);}
+  .timeline-row.pending .timeline-dot{background:#fff;border-color:var(--paper-line);}
+  .timeline-body{flex:1;}
+  .timeline-label{font-size:12.5px;font-weight:600;color:var(--ink);}
+  .timeline-row.pending .timeline-label{color:var(--ink-soft);font-weight:500;}
+  .timeline-date{font-family:'JetBrains Mono';font-size:11.5px;color:var(--ink-soft);margin-top:1px;}
+  .timeline-span{font-size:10.5px;color:var(--ink-soft);margin-top:1px;font-style:italic;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+  .close-x{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--ink-soft);font-size:20px;cursor:pointer;}
+  .modal-inner{position:relative;}
+  .import-summary{font-size:12.5px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.5;}
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:fixed;bottom:18px;right:18px;background:var(--navy);border:1px solid var(--blue);
+    border-left:4px solid var(--blue-light);color:var(--pale-text);padding:11px 16px;border-radius:8px;
+    font-size:12.5px;box-shadow:0 8px 20px rgba(0,20,50,.35);opacity:0;transform:translateY(8px);
+    transition:opacity .25s,transform .25s;z-index:60;pointer-events:none;max-width:320px;
+  }
+  .toast.show{opacity:1;transform:translateY(0);}
+  .toast.error{border-left-color:var(--alert);}
+
+  .loading{display:flex;align-items:center;justify-content:center;height:100%;color:var(--ink-soft);font-family:'JetBrains Mono';font-size:13px;}
+
+  @media (max-width:640px){
+    .stats{display:none;}
+    .velocity-label{min-width:120px;}
+    header{padding:12px 14px;}
+    .toolbar{padding:10px 14px;}
+    .board-wrap, .sold-wrap{padding:12px;}
+    table.sold-table{font-size:11.5px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <img class="brand-mark" src="data:image/jpeg;base64,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" alt="Rohrman Automotive Group">
+      <div>
+        <h1 class="display">Lafayette Hyundai</h1>
+        <p>Used Car Recon — Stock Status Board</p>
+      </div>
+    </div>
+    <div class="sync" id="syncLabel">Loading shared board…</div>
+  </header>
+
+  <div class="stats" id="stats"></div>
+  <div class="velocity" id="velocity"></div>
+  <div class="notice" id="notice"></div>
+
+  <div class="toolbar">
+    <div class="seg view" id="viewToggle">
+      <button data-view="active" class="active">Active Board</button>
+      <button data-view="ready">Front Line Ready</button>
+      <button data-view="sold">Sold History</button>
+    </div>
+    <input class="search" id="searchInput" placeholder="Search stock #, VIN, YMM, or assigned tech…">
+    <div class="seg" id="locFilter">
+      <button data-loc="all" class="active">All</button>
+      <button data-loc="on">On-Site</button>
+      <button data-loc="off">Off-Site</button>
+    </div>
+    <button class="btn ghost small lock-btn" id="lockBtn">🔒 Location Edit</button>
+    <button class="btn ghost small" id="refreshBtn">↻ Refresh</button>
+    <button class="btn" id="syncBtn">⇪ Sync Now</button>
+  </div>
+
+  <div class="board-wrap" id="boardWrap">
+    <div class="board" id="board">
+      <div class="loading">Fetching board…</div>
+    </div>
+  </div>
+
+  <div class="board-wrap" id="readyWrap" style="display:none;">
+    <div class="ready-grid" id="readyGrid"></div>
+  </div>
+
+  <div class="sold-wrap" id="soldWrap">
+    <table class="sold-table" id="soldTable">
+      <thead>
+        <tr>
+          <th>Stock #</th><th>Vehicle</th><th>VIN</th><th>Sold Date</th>
+          <th>Days to Front Line</th><th>Days in Inventory</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="soldTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit modal (dashboard-only annotations) -->
+<div class="overlay" id="vehicleOverlay">
+  <div class="modal">
+    <div class="modal-inner">
+      <button class="close-x" id="closeVehicleModal">×</button>
+      <h2 id="vehicleModalTitle">Edit Vehicle</h2>
+      <div class="readonly-grid" id="readonlyGrid"></div>
+      <p style="font-size:11.5px;color:var(--ink-soft);margin-top:-8px;margin-bottom:14px;">Stock #, VIN, YMM, and stage come from the sheet import and can't be edited here.</p>
+      <div id="stageHistory"></div>
+      <div id="vehicleForm">
+        <input type="hidden" id="vehId">
+        <div class="field"><label>Assigned To (optional)</label><input id="f_assigned" placeholder="Tech or vendor name"></div>
+        <div class="field"><label>Notes (optional)</label><textarea id="f_notes" placeholder="Blockers, parts on order, etc."></textarea></div>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" id="deleteVehBtn" style="margin-right:auto;">Remove</button>
+          <button type="button" class="btn ghost" id="cancelVehBtn">Cancel</button>
+          <button type="button" class="btn" id="saveVehBtn">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sync from Sheet: result summary (the sync itself runs immediately on button click) -->
+<div class="overlay" id="syncOverlay">
+  <div class="modal">
+    <div class="modal-inner">
+      <button class="close-x" id="closeSyncModal">×</button>
+      <h2>Sync Complete</h2>
+      <p style="font-size:12.5px;color:var(--ink-soft);margin-top:-8px;">Pulled the current Inventory sheet live via Apps Script and reconciled it against the board.</p>
+      <div id="syncSummary"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="closeSyncBtn">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm (shared for vehicle + sold record) -->
+<div class="overlay" id="deleteOverlay">
+  <div class="modal" style="max-width:360px;">
+    <h2 id="deleteTitle">Remove vehicle?</h2>
+    <p style="font-size:13px;color:var(--ink-soft);margin-top:-6px;" id="deleteDesc">This removes it from the shared board for the whole team. This can't be undone.</p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelDeleteBtn">Cancel</button>
+      <button class="btn danger" id="confirmDeleteBtn">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- Location-edit PIN gate -->
+<div class="overlay" id="pinOverlay">
+  <div class="modal" style="max-width:340px;">
+    <h2>Unlock location editing</h2>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin-top:-6px;">Enter the PIN to change On-Site / Off-Site status. Everyone else keeps view-only access. This unlocks for your current visit only — reopening the board later will ask again.</p>
+    <div class="field">
+      <label>PIN</label>
+      <input type="password" id="pinInput" inputmode="numeric" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelPinBtn">Cancel</button>
+      <button class="btn" id="confirmPinBtn">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STAGES = [
+  {key:'acquired',          label:'Acquired',          color:'var(--c-acquired)'},
+  {key:'mechanical',        label:'Mechanical Recon',  color:'var(--c-mechanical)'},
+  {key:'service_complete',  label:'Service Complete',  color:'var(--c-service)'},
+  {key:'detail',            label:'Detail',            color:'var(--c-detail)'},
+  {key:'photos',            label:'Photos / Merch',    color:'var(--c-photos)'},
+  {key:'ready',             label:'Front Line Ready',  color:'var(--c-ready)'},
+];
+const STAGE_KEYS = STAGES.map(s=>s.key);
+
+let vehicles = {};       // id -> active vehicle object, keyed internally by uid but matched on .stock
+let soldRecords = {};    // id -> sold record object
+let locFilterState = 'all';
+let viewMode = 'active'; // 'active' | 'sold'
+let editingId = null;
+let pendingDelete = null; // {type:'vehicle'|'sold', id}
+
+const EDIT_PIN = '4817'; // convenience lock only — visible in page source, not real security
+let editUnlocked = false;
+
+// ---------- backend config ----------
+// Paste the /exec URL of your deployed Apps Script Web App here (see README.md).
+// Everything else in this file is unaffected by where the data actually lives —
+// this is the only line that has to change to point at a different sheet/deployment.
+const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+function backendConfigured(){ return APPS_SCRIPT_URL && !APPS_SCRIPT_URL.startsWith('PASTE_'); }
+
+const board = document.getElementById('board');
+const boardWrap = document.getElementById('boardWrap');
+const readyWrap = document.getElementById('readyWrap');
+const readyGrid = document.getElementById('readyGrid');
+const soldWrap = document.getElementById('soldWrap');
+const soldTbody = document.getElementById('soldTbody');
+const stats = document.getElementById('stats');
+const velocity = document.getElementById('velocity');
+const notice = document.getElementById('notice');
+const syncLabel = document.getElementById('syncLabel');
+const toast = document.getElementById('toast');
+
+function showToast(msg, isError){
+  toast.textContent = msg;
+  toast.classList.toggle('error', !!isError);
+  toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>toast.classList.remove('show'), 3200);
+}
+
+function uid(){ return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function nowIso(){ return new Date().toISOString(); }
+function daysSince(iso){
+  if(!iso) return null;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+function daysBetweenIso(aIso, bIso){
+  if(!aIso || !bIso) return null;
+  return Math.round((new Date(bIso).getTime() - new Date(aIso).getTime()) / 86400000);
+}
+
+// ---------- storage: Apps Script backend ----------
+// The Apps Script Web App is the only thing that talks to the spreadsheet.
+// This dashboard just GETs/POSTs JSON against it. Vehicles and sold records
+// are always sent and received as one combined state object per request —
+// never one request per record — so a full board load or save is a single
+// round trip no matter how many rows are on the board. That mirrors the old
+// single-blob-write discipline this app has always used (it used to be two
+// storage-key writes; here it's one POST), because the underlying reason
+// still applies: firing one write/request per row is what tripped rate
+// limits before, and a live Google Sheet write-per-row would be even slower.
+//
+// GET requests are plain and cross-origin-safe as-is. POST requests are sent
+// with a text/plain content type (even though the body is JSON) specifically
+// to keep the browser from issuing a CORS preflight — Apps Script Web Apps
+// don't answer OPTIONS requests, so a real application/json POST would fail
+// before it ever reached the script. Code.gs reads the raw body itself.
+async function apiGet(action){
+  const res = await fetch(`${APPS_SCRIPT_URL}?action=${encodeURIComponent(action)}`);
+  if(!res.ok) throw new Error(`Backend returned ${res.status}`);
+  const data = await res.json();
+  if(data && data.error) throw new Error(data.error);
+  return data;
+}
+async function apiPost(payload){
+  const res = await fetch(APPS_SCRIPT_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload),
+  });
+  if(!res.ok) throw new Error(`Backend returned ${res.status}`);
+  const data = await res.json();
+  if(data && data.error) throw new Error(data.error);
+  return data;
+}
+
+async function loadState(){
+  const state = await apiGet('state');
+  vehicles = state.vehicles || {};
+  soldRecords = state.soldRecords || {};
+}
+async function saveState(){
+  await apiPost({action:'saveState', vehicles, soldRecords});
+  syncLabel.innerHTML = 'Shared board · <b>saved</b> just now';
+}
+
+async function initBoard(){
+  if(!backendConfigured()){
+    board.innerHTML = `<div class="loading">No backend configured yet. Open index.html and set APPS_SCRIPT_URL to your deployed Apps Script Web App URL — see README.md.</div>`;
+    syncLabel.textContent = 'Not configured';
+    return;
+  }
+  await loadState();
+  renderAll();
+  syncLabel.innerHTML = 'Shared board · <b>synced</b> just now';
+}
+
+function findVehicleByStock(stock){
+  return Object.values(vehicles).find(v=>v.stock===stock) || null;
+}
+function findSoldByStock(stock){
+  return Object.values(soldRecords).find(s=>s.stock===stock) || null;
+}
+
+function parseDateCell(v){
+  if(!v) return null;
+  const t = String(v).trim();
+  if(!t) return null;
+  const d = new Date(t);
+  if(isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+function deriveStageInfo({toService, fromService, toDetail, fromDetail, photosCellRaw}){
+  const raw = (photosCellRaw||'').trim();
+  const photosDate = parseDateCell(raw); // valid date string in the cell
+  if(photosDate){
+    return {stage:'ready', readyAt: photosDate};
+  }
+  if(raw === '' && fromDetail){
+    // Blank Photos Uploaded on a car that's already back from detail: treat as ready,
+    // backfilled to the From Detail date since that's the best real anchor we have.
+    return {stage:'ready', readyAt: fromDetail};
+  }
+  // Either explicitly "No" or any other non-date text — not ready yet.
+  if(fromDetail) return {stage:'photos', readyAt:null};
+  if(toDetail) return {stage:'detail', readyAt:null};
+  if(fromService) return {stage:'service_complete', readyAt:null};
+  if(toService) return {stage:'mechanical', readyAt:null};
+  return {stage:'acquired', readyAt:null};
+}
+function deriveIncludeInAvg(raw){
+  const t = (raw||'').trim().toLowerCase();
+  if(t.startsWith('exclude')) return false;
+  return true;
+}
+
+// Default on-site/off-site status by stage, applied only at the moment a vehicle
+// enters that stage (new vehicle, or a stage change on import) — not re-applied
+// on every import, so manual overrides made mid-stage stick until the next
+// stage change.
+const STAGE_LOCATION_DEFAULTS = {
+  acquired:         {onSite:false, label:'Off-Site — Acquisition/Transport'},
+  mechanical:       {onSite:true,  label:''},
+  service_complete: {onSite:true,  label:''},
+  detail:           {onSite:false, label:'Off-Site — Detail Vendor'},
+  photos:           {onSite:true,  label:''},
+  ready:            {onSite:true,  label:''},
+};
+function applyStageLocationDefault(v, stage){
+  const def = STAGE_LOCATION_DEFAULTS[stage] || {onSite:true, label:''};
+  v.onSite = def.onSite;
+  v.subLocation = def.onSite ? '' : def.label;
+}
+
+// Reconciles the live Inventory sheet rows (fetched from Apps Script as JSON,
+// one object per row keyed by header name — the exact shape parseCSV used to
+// produce from a CSV export) against the current board. All business logic
+// below is unchanged from the CSV-import version; only where the rows come
+// from has changed.
+function applyInventoryRows(rows){
+  if(rows.length===0){ return {error:'The sheet returned no data rows.'}; }
+  const report = {added:0, updated:0, soldMoved:0, incompleteMoved:0, revived:0, wholesaleExcluded:0, skipped:0, missing:[]};
+  const seenStocks = new Set();
+
+  for(const row of rows){
+    const stock = (row['Stock #']||'').trim();
+    if(!stock){ report.skipped++; continue; }
+
+    const existingActive = findVehicleByStock(stock);
+    const existingSold = findSoldByStock(stock);
+
+    // Wholesale units are out of scope entirely — no card anywhere, active or
+    // sold. Anything other than an exact "Wholesale" value defaults to
+    // included, so a blank cell or typo never hides real retail inventory.
+    const disposition = (row['Disposition']||'').trim().toLowerCase();
+    if(disposition === 'wholesale'){
+      if(existingActive) delete vehicles[existingActive.id];
+      if(existingSold) delete soldRecords[existingSold.id];
+      report.wholesaleExcluded++;
+      continue;
+    }
+
+    seenStocks.add(stock);
+
+    const vinFull = (row['VIN']||'').trim();
+    const vin8 = vinFull.slice(-8);
+    const ymm = (row['YMM']||'').trim();
+    const toService = parseDateCell(row['To Service']);
+    const fromService = parseDateCell(row['From Service']);
+    const toDetail = parseDateCell(row['To Detail']);
+    const fromDetail = parseDateCell(row['From Detail']);
+    const includeInAvg = deriveIncludeInAvg(row['Include/Exclude']);
+    const soldDate = parseDateCell(row['Sold Date']);
+    const {stage, readyAt} = deriveStageInfo({toService, fromService, toDetail, fromDetail, photosCellRaw: row['Photos Uploaded']});
+    const isIncomplete = (vinFull.length === 0) || (ymm.length === 0);
+
+    if(soldDate){
+      // A real Sold Date always wins — genuine sale, even if VIN/YMM happen to be
+      // incomplete too. Anchors Days in Inventory and the rolling-average window.
+      const record = {
+        id: existingSold ? existingSold.id : (existingActive ? existingActive.id : uid()),
+        stock, vin: vin8, ymm,
+        toServiceDate: toService, fromServiceDate: fromService,
+        toDetailDate: toDetail, fromDetailDate: fromDetail,
+        readyAt: readyAt || null,
+        soldAt: soldDate,
+        daysToFrontline: (toService && readyAt) ? daysBetweenIso(toService, readyAt) : null,
+        daysInInventory: toService ? daysBetweenIso(toService, soldDate) : null,
+        includeInAvg,
+        legacyIncomplete: false,
+        assignedTo: existingActive ? existingActive.assignedTo : (existingSold ? existingSold.assignedTo : ''),
+        notes: existingActive ? existingActive.notes : (existingSold ? existingSold.notes : ''),
+      };
+      soldRecords[record.id] = record;
+      if(existingActive){ delete vehicles[existingActive.id]; }
+      report.soldMoved++;
+      continue;
+    }
+
+    if(isIncomplete){
+      // No VIN and/or no YMM, and no Sold Date — treated as not current inventory.
+      // Filed in Sold History with no sold date/inventory-days anchor, and forced
+      // out of the averages since there's no real sale to measure.
+      const record = {
+        id: existingSold ? existingSold.id : (existingActive ? existingActive.id : uid()),
+        stock, vin: vin8, ymm,
+        toServiceDate: toService, fromServiceDate: fromService,
+        toDetailDate: toDetail, fromDetailDate: fromDetail,
+        readyAt: readyAt || null,
+        soldAt: null,
+        daysToFrontline: (toService && readyAt) ? daysBetweenIso(toService, readyAt) : null,
+        daysInInventory: null,
+        includeInAvg: false,
+        legacyIncomplete: true,
+        assignedTo: existingActive ? existingActive.assignedTo : (existingSold ? existingSold.assignedTo : ''),
+        notes: existingActive ? existingActive.notes : (existingSold ? existingSold.notes : ''),
+      };
+      soldRecords[record.id] = record;
+      if(existingActive){ delete vehicles[existingActive.id]; }
+      report.incompleteMoved++;
+      continue;
+    }
+
+    // Complete data, no sold date: belongs on the Active Board.
+    // If it was previously parked in Sold History only because it was
+    // incomplete (never a real sale), bring it back now that it has real data.
+    const revive = existingSold && existingSold.legacyIncomplete && !existingSold.soldAt;
+    if(revive){ delete soldRecords[existingSold.id]; }
+
+    if(existingActive){
+      const prevStage = existingActive.stage;
+      existingActive.vin = vin8;
+      existingActive.ymm = ymm;
+      existingActive.toServiceDate = toService;
+      existingActive.fromServiceDate = fromService;
+      existingActive.toDetailDate = toDetail;
+      existingActive.fromDetailDate = fromDetail;
+      existingActive.includeInAvg = includeInAvg;
+      if(stage !== prevStage){
+        existingActive.stageEnteredAt = nowIso();
+        applyStageLocationDefault(existingActive, stage);
+      }
+      existingActive.stage = stage;
+      existingActive.readyAt = readyAt;
+      report.updated++;
+    } else {
+      const v = {
+        id: revive ? existingSold.id : uid(),
+        stock, vin: vin8, ymm, stage,
+        onSite: true, subLocation: '', assignedTo: '', notes: '',
+        stageEnteredAt: nowIso(),
+        toServiceDate: toService, fromServiceDate: fromService,
+        toDetailDate: toDetail, fromDetailDate: fromDetail,
+        readyAt: readyAt,
+        includeInAvg,
+      };
+      applyStageLocationDefault(v, stage);
+      vehicles[v.id] = v;
+      report.added++;
+      if(revive) report.revived++;
+    }
+  }
+
+  report.missing = Object.values(vehicles)
+    .filter(v => !seenStocks.has(v.stock))
+    .map(v => v.stock);
+
+  return report;
+}
+
+// ---------- rendering ----------
+function matchesFilters(v){
+  if(locFilterState==='on' && !v.onSite) return false;
+  if(locFilterState==='off' && v.onSite) return false;
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if(!q) return true;
+  const hay = [v.stock, v.vin, v.ymm, v.assignedTo].join(' ').toLowerCase();
+  return hay.includes(q);
+}
+function matchesSoldSearch(s){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if(!q) return true;
+  const hay = [s.stock, s.vin, s.ymm].join(' ').toLowerCase();
+  return hay.includes(q);
+}
+
+function renderStats(){
+  const all = Object.values(vehicles);
+  const onSite = all.filter(v=>v.onSite).length;
+  const offSite = all.length - onSite;
+  const readyCount = all.filter(v=>v.stage==='ready').length;
+  const withRO = all.filter(v=>v.stage==='mechanical' && v.toServiceDate);
+  const avgDays = withRO.length ? Math.round(withRO.reduce((s,v)=>s+daysSince(v.toServiceDate),0)/withRO.length) : null;
+  const withDetail = all.filter(v=>v.stage==='detail' && v.toDetailDate);
+  const avgDetailDays = withDetail.length ? Math.round(withDetail.reduce((s,v)=>s+daysSince(v.toDetailDate),0)/withDetail.length) : null;
+  const overThreshold = all.filter(v=>daysSince(stageAnchorDate(v) || v.stageEnteredAt)>=6).length;
+
+  // Front-Line Ready vs Total: red below 80%, green at 80% or above.
+  // With no vehicles on the board yet, there's nothing to grade — stays neutral.
+  let readyColor = 'var(--blue-light)';
+  if(all.length > 0){
+    const pct = readyCount / all.length;
+    readyColor = pct >= 0.8 ? 'var(--good)' : 'var(--alert)';
+  }
+
+  stats.innerHTML = `
+    <div class="stat"><div class="num">${all.length}</div><div class="lbl">Total Vehicles</div></div>
+    <div class="stat"><div class="num">${onSite}</div><div class="lbl">On-Site</div></div>
+    <div class="stat off"><div class="num">${offSite}</div><div class="lbl">Off-Site</div></div>
+    <div class="stat ready"><div class="num" style="color:${readyColor};">${readyCount}</div><div class="lbl">Front-Line Ready</div></div>
+    <div class="stat"><div class="num">${avgDays==null?'—':avgDays}</div><div class="lbl">Avg Days in Mechanical Recon (n=${withRO.length})</div></div>
+    <div class="stat"><div class="num">${avgDetailDays==null?'—':avgDetailDays}</div><div class="lbl">Avg Days in Detail (n=${withDetail.length})</div></div>
+    <div class="stat hot"><div class="num">${overThreshold}</div><div class="lbl">Stalled 6+ Days</div></div>
+  `;
+}
+
+// Rolling average for a completed process step (e.g. Mechanical Recon, Detail,
+// or the full Days to Front Line span), independent of sold status. Looks
+// across every vehicle ever seen — active or sold — that has actually finished
+// the step (both its start and end dates are known), windowed by the date it
+// exited that step. Respects Include/Exclude.
+function rollingStageAvg(windowDays, startField, endField){
+  const cutoff = Date.now() - windowDays*86400000;
+  const allRecords = [...Object.values(vehicles), ...Object.values(soldRecords)];
+  const inWindow = allRecords.filter(r =>
+    r.includeInAvg !== false && r[startField] && r[endField] &&
+    new Date(r[endField]).getTime() >= cutoff
+  );
+  if(inWindow.length === 0) return {avg:null, n:0};
+  const total = inWindow.reduce((sum,r)=>sum + daysBetweenIso(r[startField], r[endField]), 0);
+  return {avg: Math.round((total/inWindow.length)*10)/10, n: inWindow.length};
+}
+
+// Under 5 = green, 6-7 = yellow, over 7 = red. (A value that lands between
+// 5 and 6, e.g. 5.4, is graded yellow along with 6-7 rather than left ungraded.)
+function veloColor(avg){
+  if(avg == null) return 'var(--pale-text)';
+  if(avg < 5) return 'var(--good-bright)';
+  if(avg <= 7) return 'var(--warn)';
+  return 'var(--alert)';
+}
+// Mechanical Recon / Detail rolling averages use a stricter, binary threshold:
+// more than 2 days is red, 2 or under is green — no yellow band here.
+function stageDurationColor(avg){
+  if(avg == null) return 'var(--pale-text)';
+  return avg > 2 ? 'var(--alert)' : 'var(--good-bright)';
+}
+
+function renderVelocity(){
+  const r14 = rollingStageAvg(14, 'toServiceDate', 'readyAt');
+  const r30 = rollingStageAvg(30, 'toServiceDate', 'readyAt');
+  const r90 = rollingStageAvg(90, 'toServiceDate', 'readyAt');
+  const totalSold = Object.keys(soldRecords).length;
+
+  const m14 = rollingStageAvg(14, 'toServiceDate', 'fromServiceDate');
+  const m30 = rollingStageAvg(30, 'toServiceDate', 'fromServiceDate');
+  const m90 = rollingStageAvg(90, 'toServiceDate', 'fromServiceDate');
+
+  const d14 = rollingStageAvg(14, 'toDetailDate', 'fromDetailDate');
+  const d30 = rollingStageAvg(30, 'toDetailDate', 'fromDetailDate');
+  const d90 = rollingStageAvg(90, 'toDetailDate', 'fromDetailDate');
+
+  const tile = (label, r, colorFn) => `
+    <div class="vstat">
+      <div class="num" style="color:${(colorFn||veloColor)(r.avg)};">${r.avg==null ? '—' : r.avg}${r.avg!=null?' <small>days</small>':''}</div>
+      <div class="lbl">${label}</div>
+      <div class="n">n=${r.n} unit${r.n===1?'':'s'}</div>
+    </div>`;
+
+  velocity.innerHTML = `
+    <div class="velocity-row">
+      <div class="velocity-label">
+        <div class="t">Days to Front Line</div>
+        <div class="s">RO-open → ready · active and sold units, ${totalSold} sold on file</div>
+      </div>
+      ${tile('14-Day Avg', r14)}
+      ${tile('30-Day Avg', r30)}
+      ${tile('90-Day Avg', r90)}
+    </div>
+    <div class="velocity-row">
+      <div class="velocity-label">
+        <div class="t">Days in Mechanical Recon</div>
+        <div class="s">To Service → From Service, completed units</div>
+      </div>
+      ${tile('14-Day Avg', m14, stageDurationColor)}
+      ${tile('30-Day Avg', m30, stageDurationColor)}
+      ${tile('90-Day Avg', m90, stageDurationColor)}
+    </div>
+    <div class="velocity-row">
+      <div class="velocity-label">
+        <div class="t">Days in Detail</div>
+        <div class="s">To Detail → From Detail, completed units</div>
+      </div>
+      ${tile('14-Day Avg', d14, stageDurationColor)}
+      ${tile('30-Day Avg', d30, stageDurationColor)}
+      ${tile('90-Day Avg', d90, stageDurationColor)}
+    </div>
+  `;
+}
+
+function renderNotice(missing){
+  if(!missing || missing.length===0){ notice.classList.remove('show'); notice.innerHTML=''; return; }
+  notice.innerHTML = `
+    <span>⚠ <b>${missing.length} vehicle${missing.length===1?'':'s'}</b> tracked on the board did not appear in the last import:</span>
+    <span class="stocks">${missing.map(s=>'#'+s).join(', ')}</span>
+    <button id="dismissNotice">Dismiss</button>
+  `;
+  notice.classList.add('show');
+  document.getElementById('dismissNotice').addEventListener('click', ()=>{
+    notice.classList.remove('show'); notice.innerHTML='';
+  });
+}
+
+function ageBadge(iso){
+  const d = daysSince(iso);
+  if(d==null) return '';
+  const cls = d > 2 ? 'alert' : 'good';
+  return `<span class="age-badge ${cls}">${d}d in stage</span>`;
+}
+function readyBadge(v){
+  // Static once a car reaches Front Line Ready — Mechanical Recon start (To Service)
+  // through the ready date — doesn't keep counting up like the in-process badge.
+  const d = daysBetweenIso(v.toServiceDate, v.readyAt);
+  return `<span class="age-badge">${d==null?'—':d}d to online</span>`;
+}
+// The real sheet date marking entry into each stage, where one exists.
+// Acquired has no such column (nothing's filled in yet), so it falls back
+// to stageEnteredAt — the one stage where that's unavoidable.
+function stageAnchorDate(v){
+  switch(v.stage){
+    case 'mechanical':        return v.toServiceDate;
+    case 'service_complete':  return v.fromServiceDate;
+    case 'detail':            return v.toDetailDate;
+    case 'photos':            return v.fromDetailDate;
+    default:                  return null;
+  }
+}
+
+function cardHtml(v){
+  const stageMeta = STAGES.find(s=>s.key===v.stage);
+  const locTxt = v.onSite ? 'On-Site' : (v.subLocation || 'Off-Site');
+  const badgeDate = stageAnchorDate(v) || v.stageEnteredAt;
+  return `
+  <div class="tag" style="--stage-color:${stageMeta.color}" data-id="${v.id}">
+    <div class="tag-strip"></div>
+    <div class="tag-top">
+      <span class="stock">#${v.stock}</span>
+      ${v.stage==='ready' ? readyBadge(v) : ageBadge(badgeDate)}
+    </div>
+    <div class="vehicle-name">${v.ymm || '—'}</div>
+    <div class="vin">VIN …${v.vin || '—'}</div>
+    <div class="tag-row"><span class="loc-dot ${v.onSite?'on':'off'}"></span><span class="loc-txt">${locTxt}</span></div>
+    ${v.assignedTo ? `<div class="assigned">Assigned: ${v.assignedTo}</div>` : ''}
+    ${v.notes ? `<div class="notes">${v.notes}</div>` : ''}
+    ${v.includeInAvg===false ? `<div class="exclude-pill">Excluded from averages</div>` : ''}
+    <div class="tag-actions">
+      <button class="act-loc" data-action="toggleloc" ${editUnlocked?'':'disabled title="Unlock location editing to change this"'}>${v.onSite?'Send Off-Site':'Bring On-Site'}</button>
+      <button class="act-edit" data-action="edit">Edit</button>
+    </div>
+  </div>`;
+}
+
+// The kanban board shows every stage except Front Line Ready, which gets its
+// own tab so the main working view only shows vehicles still in process.
+const BOARD_STAGES = STAGES.filter(s => s.key !== 'ready');
+
+function renderBoard(){
+  const all = Object.values(vehicles);
+  if(all.length === 0){
+    board.innerHTML = `<div class="empty-board">No vehicles on the board yet.<br><br>Click <b>⇪ Sync Now</b> above to pull the current Inventory sheet.</div>`;
+    return;
+  }
+  const filtered = all.filter(matchesFilters);
+  board.innerHTML = BOARD_STAGES.map(stage=>{
+    const inStage = filtered.filter(v=>v.stage===stage.key)
+      .sort((a,b)=> new Date(stageAnchorDate(a)||a.stageEnteredAt) - new Date(stageAnchorDate(b)||b.stageEnteredAt));
+    const cards = inStage.length
+      ? inStage.map(cardHtml).join('')
+      : `<div class="empty-col">No vehicles at this stage</div>`;
+    return `
+      <div class="col" style="--stage-color:${stage.color}">
+        <div class="col-head">
+          <div class="ttl"><span class="dot" style="background:${stage.color}"></span><h3>${stage.label}</h3></div>
+          <span class="count">${inStage.length}</span>
+        </div>
+        <div class="col-body">${cards}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderReadyTab(){
+  const readyVehicles = Object.values(vehicles).filter(v=>v.stage==='ready');
+  if(readyVehicles.length === 0){
+    readyGrid.innerHTML = `<div class="empty-board">No vehicles are currently Front Line Ready.</div>`;
+    return;
+  }
+  const filtered = readyVehicles.filter(matchesFilters);
+  if(filtered.length === 0){
+    readyGrid.innerHTML = `<div class="empty-board">No Front Line Ready vehicles match your current filters.</div>`;
+    return;
+  }
+  readyGrid.innerHTML = filtered
+    .sort((a,b)=> new Date(stageAnchorDate(a)||a.stageEnteredAt) - new Date(stageAnchorDate(b)||b.stageEnteredAt))
+    .map(cardHtml).join('');
+}
+
+function renderSoldHistory(){
+  const rows = Object.values(soldRecords)
+    .filter(matchesSoldSearch)
+    .sort((a,b)=> new Date(b.soldAt||0) - new Date(a.soldAt||0));
+  if(rows.length===0){
+    soldTbody.innerHTML = `<tr><td colspan="7"><div class="sold-empty">No sold units on file yet. They'll appear here automatically once a row's Sold Date is filled in on an import.</div></td></tr>`;
+    return;
+  }
+  soldTbody.innerHTML = rows.map(s=>{
+    const soldDate = s.soldAt ? new Date(s.soldAt).toISOString().slice(0,10) : '—';
+    const tags = [
+      s.legacyIncomplete ? '<span class="exclude-pill" title="No sold date on file — removed from active board due to missing VIN/YMM">No VIN/YMM</span>' : '',
+      (s.includeInAvg===false && !s.legacyIncomplete) ? '<span class="exclude-pill">Excluded</span>' : '',
+    ].filter(Boolean).join(' ');
+    return `
+      <tr data-id="${s.id}">
+        <td class="sold-stock">#${s.stock}</td>
+        <td>${s.ymm || '—'} ${tags}</td>
+        <td class="mono">…${s.vin || '—'}</td>
+        <td>${soldDate}</td>
+        <td><span class="metric-pill">${s.daysToFrontline==null?'—':s.daysToFrontline+'d'}</span></td>
+        <td><span class="metric-pill">${s.daysInInventory==null?'—':s.daysInInventory+'d'}</span></td>
+        <td><button class="row-del" data-action="delsold" title="Remove record">✕</button></td>
+      </tr>`;
+  }).join('');
+}
+
+function renderAll(){
+  renderStats();
+  renderVelocity();
+  renderBoard();
+  renderReadyTab();
+  renderSoldHistory();
+}
+
+// ---------- event delegation: board + ready tab (shared card actions) ----------
+async function handleCardClick(e){
+  const cardEl = e.target.closest('.tag');
+  if(!cardEl) return;
+  const id = cardEl.dataset.id;
+  const v = vehicles[id];
+  if(!v) return;
+
+  const btn = e.target.closest('button[data-action]');
+  if(!btn){
+    // Clicking anywhere on the card that isn't an action button opens the
+    // detail/edit view, same as the explicit Edit button.
+    openVehicleModal(v);
+    return;
+  }
+  const action = btn.dataset.action;
+
+  if(action==='toggleloc'){
+    if(!editUnlocked){ showToast('Unlock location editing first', true); return; }
+    if(v.onSite){ v.onSite = false; if(!v.subLocation) v.subLocation = 'Off-Site Vendor'; }
+    else { v.onSite = true; v.subLocation = ''; }
+    await saveState();
+    renderAll();
+    showToast(`#${v.stock} marked ${v.onSite?'On-Site':'Off-Site'}`);
+  } else if(action==='edit'){
+    openVehicleModal(v);
+  }
+}
+board.addEventListener('click', handleCardClick);
+readyGrid.addEventListener('click', handleCardClick);
+
+// ---------- view toggle ----------
+document.getElementById('viewToggle').addEventListener('click',(e)=>{
+  const b = e.target.closest('button[data-view]');
+  if(!b) return;
+  document.querySelectorAll('#viewToggle button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  viewMode = b.dataset.view;
+
+  boardWrap.style.display = viewMode==='active' ? 'block' : 'none';
+  readyWrap.style.display = viewMode==='ready' ? 'block' : 'none';
+  soldWrap.style.display  = viewMode==='sold'  ? 'block' : 'none';
+
+  // Location filter applies to both active-board and ready-tab views (both
+  // hold on-site/off-site data); Sold History has no location to filter by.
+  document.getElementById('locFilter').style.display = viewMode==='sold' ? 'none' : 'flex';
+
+  document.getElementById('searchInput').placeholder = viewMode==='sold'
+    ? 'Search sold units by stock #, VIN, or YMM…'
+    : 'Search stock #, VIN, YMM, or assigned tech…';
+  renderAll();
+});
+
+// ---------- filters ----------
+document.getElementById('searchInput').addEventListener('input', renderAll);
+document.getElementById('locFilter').addEventListener('click',(e)=>{
+  const b = e.target.closest('button[data-loc]');
+  if(!b) return;
+  document.querySelectorAll('#locFilter button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  locFilterState = b.dataset.loc;
+  renderAll();
+});
+document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+  syncLabel.textContent = 'Refreshing…';
+  await initBoard();
+  showToast('Board refreshed');
+});
+
+// ---------- sold history: row delete ----------
+soldTbody.addEventListener('click',(e)=>{
+  const btn = e.target.closest('button[data-action="delsold"]');
+  if(!btn) return;
+  const tr = e.target.closest('tr[data-id]');
+  const id = tr.dataset.id;
+  pendingDelete = {type:'sold', id};
+  document.getElementById('deleteTitle').textContent = 'Remove sold record?';
+  document.getElementById('deleteDesc').textContent = 'This removes it from Sold History and excludes it from the rolling averages for the whole team. This can\'t be undone.';
+  document.getElementById('deleteOverlay').classList.add('show');
+});
+
+// ---------- edit modal (dashboard-only fields) ----------
+const vehicleOverlay = document.getElementById('vehicleOverlay');
+const readonlyGrid = document.getElementById('readonlyGrid');
+
+function formatDate(iso){
+  return iso ? new Date(iso).toISOString().slice(0,10) : null;
+}
+function buildTimeline(v){
+  // Each entry: label, the date reached (or null if not yet), and the field
+  // name used to compute how many days were spent getting there from the
+  // previous milestone.
+  const milestones = [
+    {label:'Mechanical Recon Started (RO Open)', date:v.toServiceDate},
+    {label:'Service Complete', date:v.fromServiceDate},
+    {label:'Detail Started', date:v.toDetailDate},
+    {label:'Detail Complete / Photos', date:v.fromDetailDate},
+    {label:'Front Line Ready', date:v.readyAt},
+  ];
+  let prevDate = null;
+  const rows = milestones.map(m=>{
+    const done = !!m.date;
+    let span = '';
+    if(done && prevDate){
+      const d = daysBetweenIso(prevDate, m.date);
+      if(d != null) span = `<div class="timeline-span">${d} day${d===1?'':'s'} after previous step</div>`;
+    }
+    if(done) prevDate = m.date;
+    const dateText = m.unknown
+      ? 'Not tracked — no acquisition date column'
+      : (done ? formatDate(m.date) : 'Not reached yet');
+    return `
+      <div class="timeline-row ${done ? 'done' : 'pending'}">
+        <div class="timeline-dot"></div>
+        <div class="timeline-body">
+          <div class="timeline-label">${m.label}</div>
+          <div class="timeline-date">${dateText}</div>
+          ${span}
+        </div>
+      </div>`;
+  }).join('');
+  return `<div class="timeline"><div class="th-label">Stage History</div>${rows}</div>`;
+}
+
+function openVehicleModal(v){
+  editingId = v.id;
+  document.getElementById('vehicleModalTitle').textContent = `Edit #${v.stock}`;
+  const stageMeta = STAGES.find(s=>s.key===v.stage);
+  readonlyGrid.innerHTML = `
+    <div><div class="k">Stock #</div><div class="v">${v.stock}</div></div>
+    <div><div class="k">VIN (last 8)</div><div class="v">${v.vin||'—'}</div></div>
+    <div><div class="k">YMM</div><div class="v" style="font-family:'Inter';font-weight:600;">${v.ymm||'—'}</div></div>
+    <div><div class="k">Stage</div><div class="v" style="font-family:'Inter';font-weight:600;">${stageMeta.label}</div></div>
+  `;
+  document.getElementById('stageHistory').innerHTML = buildTimeline(v);
+  document.getElementById('vehId').value = v.id;
+  document.getElementById('f_assigned').value = v.assignedTo || '';
+  document.getElementById('f_notes').value = v.notes || '';
+  vehicleOverlay.classList.add('show');
+}
+function closeVehicleModal(){ vehicleOverlay.classList.remove('show'); editingId = null; }
+document.getElementById('closeVehicleModal').addEventListener('click', closeVehicleModal);
+document.getElementById('cancelVehBtn').addEventListener('click', closeVehicleModal);
+vehicleOverlay.addEventListener('click',(e)=>{ if(e.target===vehicleOverlay) closeVehicleModal(); });
+
+// Plain button + click listener, not a real <form> submit — this artifact
+// runs in a sandboxed frame that blocks native form submission outright
+// (browsers won't even dispatch the JS event), so relying on type="submit"
+// silently ate every save. A direct click handler has no such restriction.
+document.getElementById('saveVehBtn').addEventListener('click', async ()=>{
+  const v = vehicles[editingId];
+  if(!v){
+    showToast('Could not find this vehicle to save — it may have moved to Sold History. Try reopening it.', true);
+    closeVehicleModal();
+    renderAll();
+    return;
+  }
+  v.assignedTo = document.getElementById('f_assigned').value.trim();
+  v.notes = document.getElementById('f_notes').value.trim();
+  try{
+    await saveState();
+    closeVehicleModal();
+    renderAll();
+    showToast(`#${v.stock} updated`);
+  }catch(err){
+    console.error('Save failed:', err);
+    const detail = (err && err.message) ? err.message : String(err);
+    showToast(`Could not save: ${detail}`, true);
+  }
+});
+
+document.getElementById('deleteVehBtn').addEventListener('click', ()=>{
+  pendingDelete = {type:'vehicle', id: editingId};
+  document.getElementById('deleteTitle').textContent = 'Remove vehicle?';
+  document.getElementById('deleteDesc').textContent = 'This removes it from the shared board for the whole team. If it\'s still in your sheet, the next sync will add it back. This can\'t be undone otherwise.';
+  document.getElementById('deleteOverlay').classList.add('show');
+});
+
+// ---------- delete flow (vehicle or sold record) ----------
+const deleteOverlay = document.getElementById('deleteOverlay');
+document.getElementById('cancelDeleteBtn').addEventListener('click', ()=>{ deleteOverlay.classList.remove('show'); pendingDelete=null; });
+deleteOverlay.addEventListener('click',(e)=>{ if(e.target===deleteOverlay){ deleteOverlay.classList.remove('show'); pendingDelete=null; } });
+document.getElementById('confirmDeleteBtn').addEventListener('click', async ()=>{
+  if(!pendingDelete) return;
+  deleteOverlay.classList.remove('show');
+  if(pendingDelete.type==='vehicle'){
+    const v = vehicles[pendingDelete.id];
+    closeVehicleModal();
+    if(v){
+      delete vehicles[v.id];
+      await saveState();
+      renderAll();
+      showToast(`#${v.stock} removed from board`);
+    }
+  } else if(pendingDelete.type==='sold'){
+    const s = soldRecords[pendingDelete.id];
+    if(s){
+      delete soldRecords[s.id];
+      await saveState();
+      renderAll();
+      showToast(`#${s.stock} sold record removed`);
+    }
+  }
+  pendingDelete = null;
+});
+
+// ---------- sync from sheet ----------
+// Pulls the live Inventory tab via Apps Script, reconciles it against the
+// current board with applyInventoryRows() (the same logic that used to run
+// against a pasted/uploaded CSV export), then persists the result in one
+// combined write. Replaces the old manual export → upload/paste → import
+// flow entirely — there's nothing left for the user to prepare by hand.
+const syncOverlay = document.getElementById('syncOverlay');
+const syncSummary = document.getElementById('syncSummary');
+const syncBtn = document.getElementById('syncBtn');
+document.getElementById('closeSyncModal').addEventListener('click', ()=>syncOverlay.classList.remove('show'));
+document.getElementById('closeSyncBtn').addEventListener('click', ()=>syncOverlay.classList.remove('show'));
+syncOverlay.addEventListener('click',(e)=>{ if(e.target===syncOverlay) syncOverlay.classList.remove('show'); });
+
+syncBtn.addEventListener('click', async ()=>{
+  if(!backendConfigured()){ showToast('Backend not configured — see README.md', true); return; }
+  syncBtn.disabled = true;
+  syncLabel.textContent = 'Syncing from sheet…';
+  try{
+    const rows = await apiGet('inventory');
+    const report = applyInventoryRows(rows);
+    if(report.error){
+      showToast(report.error, true);
+      return;
+    }
+    await saveState();
+    renderNotice(report.missing);
+    renderAll();
+    syncSummary.innerHTML = `<div class="import-summary">
+      <b>${report.added}</b> added · <b>${report.updated}</b> updated · <b>${report.soldMoved}</b> sold
+      ${report.incompleteMoved ? ` · <b>${report.incompleteMoved}</b> moved to Sold History (missing VIN/YMM)` : ''}
+      ${report.wholesaleExcluded ? ` · <b>${report.wholesaleExcluded}</b> excluded (Wholesale)` : ''}
+      ${report.revived ? ` · <b>${report.revived}</b> revived to Active Board (VIN/YMM now complete)` : ''}
+      ${report.skipped ? ` · ${report.skipped} row(s) skipped (no Stock #)` : ''}
+      ${report.missing.length ? `<br><br>⚠ ${report.missing.length} previously tracked vehicle(s) were not in this sync — see the notice banner above.` : ''}
+    </div>`;
+    syncOverlay.classList.add('show');
+    showToast('Sync complete');
+  }catch(err){
+    console.error('Sync failed:', err);
+    const detail = (err && err.message) ? err.message : String(err);
+    showToast(`Sync failed: ${detail}`, true);
+    syncLabel.textContent = 'Sync failed';
+  }finally{
+    syncBtn.disabled = false;
+  }
+});
+
+// ---------- location-edit lock ----------
+const lockBtn = document.getElementById('lockBtn');
+const pinOverlay = document.getElementById('pinOverlay');
+function updateLockUI(){
+  lockBtn.textContent = editUnlocked ? '🔓 Location Edit: Unlocked' : '🔒 Location Edit';
+  lockBtn.classList.toggle('unlocked', editUnlocked);
+}
+lockBtn.addEventListener('click', ()=>{
+  if(editUnlocked){
+    editUnlocked = false; updateLockUI(); renderAll();
+    showToast('Location editing locked');
+  } else {
+    document.getElementById('pinInput').value = '';
+    pinOverlay.classList.add('show');
+  }
+});
+document.getElementById('cancelPinBtn').addEventListener('click', ()=>pinOverlay.classList.remove('show'));
+pinOverlay.addEventListener('click',(e)=>{ if(e.target===pinOverlay) pinOverlay.classList.remove('show'); });
+document.getElementById('confirmPinBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('pinInput').value.trim();
+  if(val === EDIT_PIN){
+    editUnlocked = true; pinOverlay.classList.remove('show'); updateLockUI(); renderAll();
+    showToast('Location editing unlocked for this visit');
+  } else {
+    showToast('Incorrect PIN', true);
+  }
+});
+document.getElementById('pinInput').addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'){ e.preventDefault(); document.getElementById('confirmPinBtn').click(); }
+});
+
+// ---------- init ----------
+// A hard timeout so a stuck storage connection shows a diagnostic message
+// instead of leaving "Fetching board…" on screen forever with no feedback.
+// If initBoard() eventually does resolve after this fires, it still re-renders
+// normally — this only covers the case where it never resolves at all.
+function withTimeout(promise, ms, message){
+  return new Promise((resolve, reject)=>{
+    const timer = setTimeout(()=> reject(new Error(message)), ms);
+    promise.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+withTimeout(
+  initBoard(),
+  12000,
+  'Board is taking too long to load. This usually means the Apps Script backend is slow or unreachable — check APPS_SCRIPT_URL, confirm the Web App is deployed with "Anyone" access, and try refreshing.'
+).catch((err)=>{
+  board.innerHTML = `<div class="loading">${err && err.message ? err.message : 'Could not load the board. Try refreshing.'}</div>`;
+  syncLabel.textContent = 'Sync failed';
+});
+</script>
+</body>
+</html>
