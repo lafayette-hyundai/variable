@@ -34,8 +34,22 @@
  *    Deploy, authorize the requested permissions, and copy the resulting
  *    "/exec" URL.
  * 4. Paste that URL into APPS_SCRIPT_URL near the top of index.html.
- * 5. Reload the dashboard and click "Sync Now". A "Dashboard Data" tab will
+ * 5. Reload the Sheet (or run onOpen once from the editor) so the "Recon
+ *    Dashboard" menu shows up, then use it to set an access password — see
+ *    "---- Access control ----" below. Until you do, the dashboard is NOT
+ *    password-protected.
+ * 6. Reload the dashboard and click "Sync Now". A "Dashboard Data" tab will
  *    be created automatically the first time the script runs.
+ *
+ * ---- Access control ----
+ * Every read and write below is gated by a single shared password, checked
+ * server-side — the dashboard's page shell still loads for anyone with the
+ * URL, but no inventory data is returned until the right password is sent.
+ * Set or change it via Sheet menu → "Recon Dashboard" → "Set/Change Access
+ * Password"; it's stored in this project's Script Properties, never in this
+ * source file, so it never ends up in git history or on GitHub. Leaving it
+ * unset (the default right after first deploying) leaves the dashboard open
+ * to anyone with the URL — set a password as soon as you deploy.
  */
 
 const INVENTORY_SHEET_NAME = 'TTO SCIENCE';
@@ -63,8 +77,14 @@ const BOOL_FALSE_DEFAULT_FIELDS = ['onSite', 'legacyIncomplete']; // absent/blan
 function doGet(e) {
   try {
     const action = e.parameter.action;
-    if (action === 'inventory') return jsonOut(getInventoryRows());
-    if (action === 'state') return jsonOut(getState());
+    if (action === 'inventory') {
+      if (!checkAccess(e.parameter.key)) return unauthorizedOut();
+      return jsonOut(getInventoryRows());
+    }
+    if (action === 'state') {
+      if (!checkAccess(e.parameter.key)) return unauthorizedOut();
+      return jsonOut(getState());
+    }
     return jsonOut({ error: 'Unknown action: ' + action });
   } catch (err) {
     return jsonOut({ error: String(err && err.message ? err.message : err) });
@@ -75,6 +95,7 @@ function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
     if (body.action === 'saveState') {
+      if (!checkAccess(body.key)) return unauthorizedOut();
       saveState(body.vehicles || {}, body.soldRecords || {});
       return jsonOut({ ok: true });
     }
@@ -87,6 +108,45 @@ function doPost(e) {
 function jsonOut(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+function unauthorizedOut() {
+  return jsonOut({ error: 'Incorrect password.', unauthorized: true });
+}
+
+// ---------------- access control ----------------
+// Adds a "Recon Dashboard" menu to the Sheet so a non-technical owner can set
+// or change the password without ever opening the script editor.
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Recon Dashboard')
+    .addItem('Set/Change Access Password', 'setAccessKey')
+    .addToUi();
+}
+
+function setAccessKey() {
+  const ui = SpreadsheetApp.getUi();
+  const result = ui.prompt(
+    'Set Dashboard Access Password',
+    'Enter the password dashboard viewers will need to enter. Leave blank and press OK to remove password protection entirely.',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (result.getSelectedButton() !== ui.Button.OK) return;
+  const value = result.getResponseText().trim();
+  if (value === '') {
+    PropertiesService.getScriptProperties().deleteProperty('ACCESS_KEY');
+    ui.alert('Password protection removed — anyone with the dashboard URL can now view it.');
+  } else {
+    PropertiesService.getScriptProperties().setProperty('ACCESS_KEY', value);
+    ui.alert('Password set. Share it only with staff who should have dashboard access.');
+  }
+}
+
+// No password configured yet => open (matches "leave blank to remove
+// protection" above). Once one is set, it must match exactly.
+function checkAccess(providedKey) {
+  const real = PropertiesService.getScriptProperties().getProperty('ACCESS_KEY');
+  if (!real) return true;
+  return providedKey === real;
 }
 
 /** Reads the Inventory tab and returns one JSON object per row, keyed by

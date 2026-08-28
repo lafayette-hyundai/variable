@@ -43,7 +43,20 @@ A second tab named **"Dashboard Data"** will be created automatically the
 first time the script runs (on the dashboard's first Sync or load). Don't
 create it manually — the script owns its columns.
 
-### 2. Point the dashboard at your deployment
+### 2. Set a password (do this right away)
+
+Reload the Google Sheet tab in your browser so the script picks up its menu.
+You should see a new **Recon Dashboard** menu next to Extensions/Tools.
+Click **Recon Dashboard → Set/Change Access Password** and enter a password.
+
+Until you do this, the dashboard is **not** password-protected — anyone with
+the Pages URL can view it. Once set, nobody sees any vehicle data (the page
+itself still loads, but stays empty) until they enter that password. You can
+change it any time from the same menu; existing browser tabs will be asked
+to re-enter it on their next action. Share the password only with staff who
+should have access — it's a single shared password, not individual logins.
+
+### 3. Point the dashboard at your deployment
 
 Open `index.html` in this repo and find this line near the top of the
 `<script>` block:
@@ -55,14 +68,15 @@ const APPS_SCRIPT_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 Replace the placeholder with the `/exec` URL from step 6 above. Commit and
 push.
 
-### 3. GitHub Pages
+### 4. GitHub Pages
 
 In the repo's **Settings → Pages**, set the source to deploy from this
 branch's root. GitHub will serve `index.html` at the resulting Pages URL.
 
-### 4. First sync
+### 5. First sync
 
-Open the published Pages URL and click **⇪ Sync Now**. This pulls every row
+Open the published Pages URL, enter the password from step 2, then click
+**⇪ Sync Now**. This pulls every row
 from the Inventory tab, applies the same stage-derivation and reconciliation
 rules the dashboard has always used, and saves the result to the Dashboard
 Data tab. From then on, "Sync Now" is the on-demand replacement for the old
@@ -85,10 +99,28 @@ URL stays the same, so nothing needs to change in `index.html`.
   stage change resets the location to that stage's default.
 - A Stock # that drops out of the Inventory sheet is never silently
   deleted — it's flagged in a notice banner on the next sync.
-- The on-site/off-site PIN lock (default `4817`, set as `EDIT_PIN` in
-  `index.html`) is a convenience lock only, not real security — it's
-  visible to anyone who views the page source. It's meant to slow down
-  accidental edits from the sales floor, not to gate access.
 - Full behavioral spec (stage derivation order, metrics thresholds, on-site
   defaults by stage, etc.) is documented inline as comments in `index.html`
   next to the code that implements each rule.
+
+## Two different locks — don't confuse them
+
+- **Dashboard access password** (set via the Sheet's Recon Dashboard menu,
+  checked in `Code.gs`): gates *viewing the data at all*. Enforced
+  server-side — Apps Script refuses to return inventory or dashboard data
+  without the right password, regardless of what the browser sends. This is
+  real access control, and it's the one this section is about.
+- **Location-edit PIN** (default `4817`, set as `EDIT_PIN` in `index.html`):
+  a separate, much lower-stakes lock that only gates the On-Site/Off-Site
+  toggle for people who *already* passed the access password above. It's a
+  convenience speed bump only, checked in the browser and visible to anyone
+  who views page source — it's meant to slow down accidental taps from the
+  sales floor, not to stop a deliberate bypass.
+
+**Limitations of the access password worth knowing:** it's one shared
+password for everyone (not individual logins), there's no lockout after
+repeated wrong guesses, and it's sent as a URL query parameter on read
+requests (so it can appear in Apps Script's own execution logs). That's an
+appropriate tradeoff for an internal dealership tool — it stops a stranger
+who finds the Pages URL from seeing inventory — but it isn't the same
+security bar as a real per-user login system.

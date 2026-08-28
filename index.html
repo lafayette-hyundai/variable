@@ -424,6 +424,23 @@
   </div>
 </div>
 
+<!-- Dashboard access gate — blocks viewing, not just editing. Not dismissable:
+     no vehicle data loads from Apps Script until the right password is sent. -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal" style="max-width:340px;">
+    <h2>Dashboard Password</h2>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin-top:-6px;">Ask your manager for the current password.</p>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginInput" autocomplete="off">
+    </div>
+    <div id="loginError" style="color:var(--alert);font-size:12px;margin:-6px 0 12px;display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn" id="loginSubmitBtn" style="width:100%;">Enter</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -446,6 +463,14 @@ let pendingDelete = null; // {type:'vehicle'|'sold', id}
 
 const EDIT_PIN = '4817'; // convenience lock only — visible in page source, not real security
 let editUnlocked = false;
+
+// The dashboard-access password, checked server-side by Code.gs on every
+// request. Entered once via the login gate below and kept in memory (plus
+// sessionStorage so a reload in the same tab doesn't ask again) — never
+// hardcoded here, unlike EDIT_PIN above, since this one actually gates the
+// real data rather than just a UI convenience.
+let accessKey = '';
+const ACCESS_KEY_STORAGE = 'reconAccessKey';
 
 // ---------- backend config ----------
 // Paste the /exec URL of your deployed Apps Script Web App here (see README.md).
@@ -501,22 +526,33 @@ function daysBetweenIso(aIso, bIso){
 // to keep the browser from issuing a CORS preflight — Apps Script Web Apps
 // don't answer OPTIONS requests, so a real application/json POST would fail
 // before it ever reached the script. Code.gs reads the raw body itself.
+// Throws with an `.unauthorized` flag on a bad/missing password so callers
+// can tell "wrong password" apart from a network or backend error and react
+// differently (send the user back to the login gate instead of just a toast).
+function throwIfError(data){
+  if(data && data.error){
+    const err = new Error(data.error);
+    if(data.unauthorized) err.unauthorized = true;
+    throw err;
+  }
+}
 async function apiGet(action){
-  const res = await fetch(`${APPS_SCRIPT_URL}?action=${encodeURIComponent(action)}`);
+  const url = `${APPS_SCRIPT_URL}?action=${encodeURIComponent(action)}&key=${encodeURIComponent(accessKey)}`;
+  const res = await fetch(url);
   if(!res.ok) throw new Error(`Backend returned ${res.status}`);
   const data = await res.json();
-  if(data && data.error) throw new Error(data.error);
+  throwIfError(data);
   return data;
 }
 async function apiPost(payload){
   const res = await fetch(APPS_SCRIPT_URL, {
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(payload),
+    body: JSON.stringify({...payload, key: accessKey}),
   });
   if(!res.ok) throw new Error(`Backend returned ${res.status}`);
   const data = await res.json();
-  if(data && data.error) throw new Error(data.error);
+  throwIfError(data);
   return data;
 }
 
@@ -1024,11 +1060,17 @@ async function handleCardClick(e){
 
   if(action==='toggleloc'){
     if(!editUnlocked){ showToast('Unlock location editing first', true); return; }
+    const wasOnSite = v.onSite, wasSubLocation = v.subLocation;
     if(v.onSite){ v.onSite = false; if(!v.subLocation) v.subLocation = 'Off-Site Vendor'; }
     else { v.onSite = true; v.subLocation = ''; }
-    await saveState();
-    renderAll();
-    showToast(`#${v.stock} marked ${v.onSite?'On-Site':'Off-Site'}`);
+    try{
+      await saveState();
+      renderAll();
+      showToast(`#${v.stock} marked ${v.onSite?'On-Site':'Off-Site'}`);
+    }catch(err){
+      v.onSite = wasOnSite; v.subLocation = wasSubLocation;
+      if(!handleApiError(err)) showToast(`Could not save: ${err && err.message ? err.message : err}`, true);
+    }
   } else if(action==='edit'){
     openVehicleModal(v);
   }
@@ -1070,8 +1112,12 @@ document.getElementById('locFilter').addEventListener('click',(e)=>{
 });
 document.getElementById('refreshBtn').addEventListener('click', async ()=>{
   syncLabel.textContent = 'Refreshing…';
-  await initBoard();
-  showToast('Board refreshed');
+  try{
+    await initBoard();
+    showToast('Board refreshed');
+  }catch(err){
+    if(!handleApiError(err)) showToast(`Refresh failed: ${err && err.message ? err.message : err}`, true);
+  }
 });
 
 // ---------- sold history: row delete ----------
@@ -1171,8 +1217,10 @@ document.getElementById('saveVehBtn').addEventListener('click', async ()=>{
     showToast(`#${v.stock} updated`);
   }catch(err){
     console.error('Save failed:', err);
-    const detail = (err && err.message) ? err.message : String(err);
-    showToast(`Could not save: ${detail}`, true);
+    if(!handleApiError(err)){
+      const detail = (err && err.message) ? err.message : String(err);
+      showToast(`Could not save: ${detail}`, true);
+    }
   }
 });
 
@@ -1190,23 +1238,28 @@ deleteOverlay.addEventListener('click',(e)=>{ if(e.target===deleteOverlay){ dele
 document.getElementById('confirmDeleteBtn').addEventListener('click', async ()=>{
   if(!pendingDelete) return;
   deleteOverlay.classList.remove('show');
-  if(pendingDelete.type==='vehicle'){
-    const v = vehicles[pendingDelete.id];
-    closeVehicleModal();
-    if(v){
-      delete vehicles[v.id];
-      await saveState();
-      renderAll();
-      showToast(`#${v.stock} removed from board`);
+  try{
+    if(pendingDelete.type==='vehicle'){
+      const v = vehicles[pendingDelete.id];
+      closeVehicleModal();
+      if(v){
+        delete vehicles[v.id];
+        await saveState();
+        renderAll();
+        showToast(`#${v.stock} removed from board`);
+      }
+    } else if(pendingDelete.type==='sold'){
+      const s = soldRecords[pendingDelete.id];
+      if(s){
+        delete soldRecords[s.id];
+        await saveState();
+        renderAll();
+        showToast(`#${s.stock} sold record removed`);
+      }
     }
-  } else if(pendingDelete.type==='sold'){
-    const s = soldRecords[pendingDelete.id];
-    if(s){
-      delete soldRecords[s.id];
-      await saveState();
-      renderAll();
-      showToast(`#${s.stock} sold record removed`);
-    }
+  }catch(err){
+    if(!handleApiError(err)) showToast(`Could not remove: ${err && err.message ? err.message : err}`, true);
+    await initBoard(); // local state may now be out of sync with the backend — reload it
   }
   pendingDelete = null;
 });
@@ -1250,9 +1303,11 @@ syncBtn.addEventListener('click', async ()=>{
     showToast('Sync complete');
   }catch(err){
     console.error('Sync failed:', err);
-    const detail = (err && err.message) ? err.message : String(err);
-    showToast(`Sync failed: ${detail}`, true);
-    syncLabel.textContent = 'Sync failed';
+    if(!handleApiError(err)){
+      const detail = (err && err.message) ? err.message : String(err);
+      showToast(`Sync failed: ${detail}`, true);
+      syncLabel.textContent = 'Sync failed';
+    }
   }finally{
     syncBtn.disabled = false;
   }
@@ -1289,8 +1344,76 @@ document.getElementById('pinInput').addEventListener('keydown',(e)=>{
   if(e.key==='Enter'){ e.preventDefault(); document.getElementById('confirmPinBtn').click(); }
 });
 
+// ---------- dashboard access gate ----------
+// Runs before anything else. The page shell (header, empty board) is always
+// visible, but initBoard() can't return real data until Code.gs accepts the
+// password — see checkAccess() in Code.gs. A password entered here is kept
+// for the rest of this browser tab's life (sessionStorage), so reloading the
+// same tab doesn't ask again; closing the tab or opening a new one does.
+const loginOverlay = document.getElementById('loginOverlay');
+const loginInput = document.getElementById('loginInput');
+const loginError = document.getElementById('loginError');
+const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+
+function showLogin(message){
+  loginOverlay.classList.add('show');
+  if(message){ loginError.textContent = message; loginError.style.display = 'block'; }
+  else { loginError.style.display = 'none'; }
+  loginInput.value = '';
+  loginInput.focus();
+}
+function hideLogin(){ loginOverlay.classList.remove('show'); }
+
+// Any write action (save, delete, sync) can also hit "unauthorized" later —
+// e.g. the password was changed while this tab was still open. Routed back
+// through here instead of just a toast, so the user knows to log in again
+// rather than assuming it's a generic network hiccup.
+function handleApiError(err){
+  if(err && err.unauthorized){
+    try{ sessionStorage.removeItem(ACCESS_KEY_STORAGE); }catch(e){}
+    accessKey = '';
+    showLogin('Password needed again — please re-enter it.');
+    return true;
+  }
+  return false;
+}
+
+async function attemptLoad(){
+  loginSubmitBtn.disabled = true;
+  loginSubmitBtn.textContent = 'Checking…';
+  try{
+    await withTimeout(
+      initBoard(),
+      12000,
+      'Board is taking too long to load. This usually means the Apps Script backend is slow or unreachable — check APPS_SCRIPT_URL, confirm the Web App is deployed with "Anyone" access, and try refreshing.'
+    );
+    hideLogin();
+    try{ sessionStorage.setItem(ACCESS_KEY_STORAGE, accessKey); }catch(e){}
+  }catch(err){
+    if(err && err.unauthorized){
+      showLogin('Incorrect password. Try again.');
+    } else {
+      hideLogin();
+      board.innerHTML = `<div class="loading">${err && err.message ? err.message : 'Could not load the board. Try refreshing.'}</div>`;
+      syncLabel.textContent = 'Sync failed';
+    }
+  } finally {
+    loginSubmitBtn.disabled = false;
+    loginSubmitBtn.textContent = 'Enter';
+  }
+}
+
+async function submitLogin(){
+  const password = loginInput.value.trim();
+  if(!password){ showLogin('Enter a password.'); return; }
+  accessKey = password;
+  await attemptLoad();
+}
+loginSubmitBtn.addEventListener('click', submitLogin);
+loginInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ e.preventDefault(); submitLogin(); } });
+
 // ---------- init ----------
-// A hard timeout so a stuck storage connection shows a diagnostic message
+// A hard timeout so a stuck backend connection shows a diagnostic message
 // instead of leaving "Fetching board…" on screen forever with no feedback.
 // If initBoard() eventually does resolve after this fires, it still re-renders
 // normally — this only covers the case where it never resolves at all.
@@ -1303,14 +1426,20 @@ function withTimeout(promise, ms, message){
     );
   });
 }
-withTimeout(
-  initBoard(),
-  12000,
-  'Board is taking too long to load. This usually means the Apps Script backend is slow or unreachable — check APPS_SCRIPT_URL, confirm the Web App is deployed with "Anyone" access, and try refreshing.'
-).catch((err)=>{
-  board.innerHTML = `<div class="loading">${err && err.message ? err.message : 'Could not load the board. Try refreshing.'}</div>`;
-  syncLabel.textContent = 'Sync failed';
-});
+
+if(!backendConfigured()){
+  board.innerHTML = `<div class="loading">No backend configured yet. Open index.html and set APPS_SCRIPT_URL to your deployed Apps Script Web App URL — see README.md.</div>`;
+  syncLabel.textContent = 'Not configured';
+} else {
+  let storedKey = null;
+  try{ storedKey = sessionStorage.getItem(ACCESS_KEY_STORAGE); }catch(e){}
+  if(storedKey){
+    accessKey = storedKey;
+    attemptLoad();
+  } else {
+    showLogin();
+  }
+}
 </script>
 </body>
 </html>
