@@ -38,7 +38,7 @@
  *    be created automatically the first time the script runs.
  */
 
-const INVENTORY_SHEET_NAME = 'Inventory';
+const INVENTORY_SHEET_NAME = 'TTO SCIENCE';
 const DASHBOARD_SHEET_NAME = 'Dashboard Data';
 
 // Column order for the Dashboard Data tab. "recordType" distinguishes an
