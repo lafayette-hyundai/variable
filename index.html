@@ -185,6 +185,9 @@
     cursor:pointer;
   }
   .tag:hover{box-shadow:0 3px 0 var(--tag-shadow), 0 8px 16px rgba(0,48,130,.2);}
+  .tag.flagged{box-shadow:0 0 0 2px var(--alert), 0 3px 0 var(--tag-shadow), 0 6px 10px rgba(0,48,130,.12);}
+  .tag.flagged:hover{box-shadow:0 0 0 2px var(--alert), 0 3px 0 var(--tag-shadow), 0 8px 16px rgba(0,48,130,.2);}
+  .flag-mark{margin-right:3px;}
   .tag-actions button{cursor:pointer;}
   .tag::before{
     content:"";position:absolute;top:-6px;left:50%;transform:translateX(-50%);
@@ -220,6 +223,8 @@
   .act-edit{background:var(--paper-line);color:var(--ink);}
   .act-loc{background:transparent;border:1px solid var(--paper-line) !important;color:var(--ink-soft);}
   .act-loc[disabled]{opacity:.4;cursor:not-allowed;}
+  .act-flag{background:transparent;border:1px solid var(--paper-line) !important;color:var(--ink-soft);}
+  .act-flag.on{background:var(--alert);border-color:var(--alert) !important;color:#fff;}
 
   /* ---------- lock control ---------- */
   .lock-btn.unlocked{background:var(--navy);border-color:var(--navy);color:#ffffff;}
@@ -692,6 +697,7 @@ function applyInventoryRows(rows){
         legacyIncomplete: false,
         assignedTo: existingActive ? existingActive.assignedTo : (existingSold ? existingSold.assignedTo : ''),
         notes: existingActive ? existingActive.notes : (existingSold ? existingSold.notes : ''),
+        flagged: existingActive ? !!existingActive.flagged : !!(existingSold && existingSold.flagged),
       };
       soldRecords[record.id] = record;
       if(existingActive){ delete vehicles[existingActive.id]; }
@@ -716,6 +722,7 @@ function applyInventoryRows(rows){
         legacyIncomplete: true,
         assignedTo: existingActive ? existingActive.assignedTo : (existingSold ? existingSold.assignedTo : ''),
         notes: existingActive ? existingActive.notes : (existingSold ? existingSold.notes : ''),
+        flagged: existingActive ? !!existingActive.flagged : !!(existingSold && existingSold.flagged),
       };
       soldRecords[record.id] = record;
       if(existingActive){ delete vehicles[existingActive.id]; }
@@ -749,7 +756,7 @@ function applyInventoryRows(rows){
       const v = {
         id: revive ? existingSold.id : uid(),
         stock, vin: vin8, ymm, stage,
-        onSite: true, subLocation: '', assignedTo: '', notes: '',
+        onSite: true, subLocation: '', assignedTo: '', notes: '', flagged: false,
         stageEnteredAt: nowIso(),
         toServiceDate: toService, fromServiceDate: fromService,
         toDetailDate: toDetail, fromDetailDate: fromDetail,
@@ -943,10 +950,10 @@ function cardHtml(v){
   const locTxt = v.onSite ? 'On-Site' : (v.subLocation || 'Off-Site');
   const badgeDate = stageAnchorDate(v) || v.stageEnteredAt;
   return `
-  <div class="tag" style="--stage-color:${stageMeta.color}" data-id="${v.id}">
+  <div class="tag${v.flagged?' flagged':''}" style="--stage-color:${stageMeta.color}" data-id="${v.id}">
     <div class="tag-strip"></div>
     <div class="tag-top">
-      <span class="stock">#${v.stock}</span>
+      <span class="stock">${v.flagged?'<span class="flag-mark">🚩</span>':''}#${v.stock}</span>
       ${v.stage==='ready' ? readyBadge(v) : ageBadge(badgeDate)}
     </div>
     <div class="vehicle-name">${v.ymm || '—'}</div>
@@ -956,6 +963,7 @@ function cardHtml(v){
     ${v.notes ? `<div class="notes">${v.notes}</div>` : ''}
     ${v.includeInAvg===false ? `<div class="exclude-pill">Excluded from averages</div>` : ''}
     <div class="tag-actions">
+      <button class="act-flag${v.flagged?' on':''}" data-action="toggleflag" title="${v.flagged?'Remove attention flag':'Flag for attention'}">${v.flagged?'🚩 Flagged':'🚩 Flag'}</button>
       <button class="act-loc" data-action="toggleloc" ${editUnlocked?'':'disabled title="Unlock location editing to change this"'}>${v.onSite?'Send Off-Site':'Bring On-Site'}</button>
       <button class="act-edit" data-action="edit">Edit</button>
     </div>
@@ -1019,6 +1027,7 @@ function renderSoldHistory(){
     const tags = [
       s.legacyIncomplete ? '<span class="exclude-pill" title="No sold date on file — removed from active board due to missing VIN/YMM">No VIN/YMM</span>' : '',
       (s.includeInAvg===false && !s.legacyIncomplete) ? '<span class="exclude-pill">Excluded</span>' : '',
+      s.flagged ? '<span class="exclude-pill" style="background:var(--alert);color:#fff;">🚩 Flagged</span>' : '',
     ].filter(Boolean).join(' ');
     return `
       <tr data-id="${s.id}">
@@ -1069,6 +1078,19 @@ async function handleCardClick(e){
       showToast(`#${v.stock} marked ${v.onSite?'On-Site':'Off-Site'}`);
     }catch(err){
       v.onSite = wasOnSite; v.subLocation = wasSubLocation;
+      if(!handleApiError(err)) showToast(`Could not save: ${err && err.message ? err.message : err}`, true);
+    }
+  } else if(action==='toggleflag'){
+    // Unlike location, flagging isn't PIN-gated — anyone on the team should
+    // be able to raise or clear an attention flag without extra friction.
+    const wasFlagged = v.flagged;
+    v.flagged = !v.flagged;
+    try{
+      await saveState();
+      renderAll();
+      showToast(v.flagged ? `#${v.stock} flagged for attention` : `#${v.stock} flag cleared`);
+    }catch(err){
+      v.flagged = wasFlagged;
       if(!handleApiError(err)) showToast(`Could not save: ${err && err.message ? err.message : err}`, true);
     }
   } else if(action==='edit'){

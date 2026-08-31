@@ -94,9 +94,14 @@ URL stays the same, so nothing needs to change in `index.html`.
 
 - Matching between the Inventory sheet and the dashboard is always by
   `Stock #`.
-- Dashboard-only fields (on-site/off-site, assigned-to, notes) are never
-  touched by a sync except at initial vehicle creation, or when a
-  stage change resets the location to that stage's default.
+- Dashboard-only fields (on-site/off-site, assigned-to, notes, the red
+  attention flag) are never touched by a sync except at initial vehicle
+  creation, or when a stage change resets the location to that stage's
+  default.
+- The red flag (🚩 button on every card) is a plain attention marker — click
+  to raise or clear it, no PIN required. It survives syncs the same way
+  notes and assigned-to do, and carries over if the vehicle moves to Sold
+  History before someone clears it.
 - A Stock # that drops out of the Inventory sheet is never silently
   deleted — it's flagged in a notice banner on the next sync.
 - Full behavioral spec (stage derivation order, metrics thresholds, on-site

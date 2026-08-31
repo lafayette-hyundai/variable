@@ -59,12 +59,17 @@ const DASHBOARD_SHEET_NAME = 'Dashboard Data';
 // active board vehicle from a sold-history record — Stock # is unique
 // across the two by construction of the reconciliation logic, so one flat
 // table can hold both.
+// Appending a new field here is safe for sheets that already have data:
+// getDashboardSheet() extends the header row automatically, and old rows
+// just read back an empty value (normalized per the FIELDS lists below) for
+// whatever's new. Never reorder or remove an existing entry — that would
+// shift every column out from under already-saved data.
 const DASHBOARD_HEADERS = [
   'id', 'recordType', 'stock', 'vin', 'ymm', 'stage',
   'onSite', 'subLocation', 'assignedTo', 'notes', 'stageEnteredAt',
   'toServiceDate', 'fromServiceDate', 'toDetailDate', 'fromDetailDate',
   'readyAt', 'soldAt', 'daysToFrontline', 'daysInInventory',
-  'includeInAvg', 'legacyIncomplete',
+  'includeInAvg', 'legacyIncomplete', 'flagged',
 ];
 const DATE_FIELDS = [
   'stageEnteredAt', 'toServiceDate', 'fromServiceDate',
@@ -72,7 +77,7 @@ const DATE_FIELDS = [
 ];
 const NUMBER_FIELDS = ['daysToFrontline', 'daysInInventory'];
 const BOOL_TRUE_DEFAULT_FIELDS = ['includeInAvg']; // absent/blank => true
-const BOOL_FALSE_DEFAULT_FIELDS = ['onSite', 'legacyIncomplete']; // absent/blank => false
+const BOOL_FALSE_DEFAULT_FIELDS = ['onSite', 'legacyIncomplete', 'flagged']; // absent/blank => false
 
 function doGet(e) {
   try {
@@ -184,6 +189,11 @@ function getDashboardSheet() {
     sh = ss.insertSheet(DASHBOARD_SHEET_NAME);
     sh.getRange(1, 1, 1, DASHBOARD_HEADERS.length).setValues([DASHBOARD_HEADERS]);
     sh.setFrozenRows(1);
+  } else if (sh.getLastColumn() < DASHBOARD_HEADERS.length) {
+    // DASHBOARD_HEADERS grew since this tab was created (a new dashboard-only
+    // field was added) — extend the header row to match. Existing data rows
+    // are untouched; the new column just reads back blank until next save.
+    sh.getRange(1, 1, 1, DASHBOARD_HEADERS.length).setValues([DASHBOARD_HEADERS]);
   }
   return sh;
 }
