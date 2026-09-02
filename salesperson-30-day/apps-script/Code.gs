@@ -33,8 +33,9 @@
  * 2. In the Apps Script editor's function dropdown (top toolbar), select
  *    `installDailyTrigger` and click Run once. Authorize the requested
  *    permissions (Gmail read, Sheets read/write, and the ability to run on
- *    a schedule). This creates the daily 6am trigger that watches for the
- *    report email — you only need to run it once, ever.
+ *    a schedule). This creates a daily trigger (see CHECK_HOUR below —
+ *    defaults to 11am, an hour after the report's 10am delivery) that
+ *    watches for the report email — you only need to run it once, ever.
  * 3. Deploy → New deployment → type "Web app".
  *      - Execute as: Me
  *      - Who has access: Anyone
@@ -139,6 +140,13 @@ function checkAccess(providedKey) {
 
 // ---------------- Gmail ingestion ----------------
 
+// Runs at 11am — an hour after the report's 10am delivery, since
+// Apps Script's atHour() fires sometime within that hour, not at an exact
+// minute. If the report's delivery time ever changes, update CHECK_HOUR to
+// stay at least an hour after it and re-run this function (it replaces any
+// existing trigger for checkForNewReport, so it's safe to run again).
+const CHECK_HOUR = 11;
+
 function installDailyTrigger() {
   ScriptApp.getProjectTriggers().forEach(t => {
     if (t.getHandlerFunction() === 'checkForNewReport') ScriptApp.deleteTrigger(t);
@@ -146,7 +154,7 @@ function installDailyTrigger() {
   ScriptApp.newTrigger('checkForNewReport')
     .timeBased()
     .everyDays(1)
-    .atHour(6)
+    .atHour(CHECK_HOUR)
     .create();
 }
 
