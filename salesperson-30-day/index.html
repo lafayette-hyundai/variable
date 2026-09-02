@@ -94,6 +94,40 @@
   .empty-state{color:var(--ink-soft);font-size:13.5px;text-align:center;padding:60px 20px;max-width:420px;margin:0 auto;}
   .loading{display:flex;align-items:center;justify-content:center;height:100%;color:var(--ink-soft);font-family:'JetBrains Mono';font-size:13px;padding:60px 0;}
 
+  /* ---------- standards charts ----------
+     Fixed dark surface (not the light dashboard theme) — status colors below
+     are validated specifically against this exact background. */
+  .charts-card{background:#1a1a19;border-radius:12px;padding:22px 24px;min-width:820px;}
+  .charts-card h2{font-family:'Oswald';font-size:15px;letter-spacing:.03em;text-transform:uppercase;color:#ffffff;margin:0 0 4px;}
+  .charts-card > p{color:#c3c2b7;font-size:11.5px;margin:0 0 20px;}
+  .chart-block + .chart-block{margin-top:26px;}
+  .chart-block h3{font-family:'Oswald';font-size:12.5px;letter-spacing:.02em;color:#ffffff;margin:0 0 2px;}
+  .chart-block .chart-sub{color:#898781;font-size:10.5px;font-family:'JetBrains Mono';margin:0 0 10px;}
+  .chart-grid-small{display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:24px;margin-top:22px;}
+  .bar-row{display:flex;align-items:center;gap:10px;position:relative;padding:3px 0;}
+  .bar-name{
+    width:100px;flex-shrink:0;font-size:11px;color:#ffffff;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;font-family:'Inter';
+  }
+  .bar-track{flex:1;position:relative;height:20px;}
+  .chart-block.big .bar-track{height:28px;}
+  .bar-fill{position:absolute;top:0;left:0;height:100%;border-radius:0 4px 4px 0;min-width:2px;}
+  .bar-fill.good{background:#0ca30c;}
+  .bar-fill.critical{background:#d03b3b;}
+  .bar-value{
+    position:absolute;top:50%;transform:translateY(-50%);font-family:'JetBrains Mono';
+    font-size:10.5px;color:#ffffff;white-space:nowrap;
+  }
+  .bar-threshold{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed #898781;}
+  .threshold-header{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+  .threshold-header .bar-name{visibility:hidden;}
+  .threshold-header .bar-track{height:14px;}
+  .threshold-label{
+    position:absolute;top:0;font-size:9px;color:#c3c2b7;font-family:'JetBrains Mono';
+    white-space:nowrap;transform:translateX(-50%);
+  }
+  .chart-empty{color:#898781;font-size:11.5px;padding:6px 0;}
+
   .overlay{
     position:fixed;inset:0;background:rgba(0,20,50,.5);display:none;
     align-items:center;justify-content:center;z-index:50;padding:16px;
@@ -189,6 +223,7 @@
   <div class="content-wrap" id="contentWrap">
     <div class="loading">Fetching report data…</div>
   </div>
+  <div class="content-wrap" id="chartsWrap"></div>
 </div>
 
 <!-- Backfill a specific day's CSV (exception path — the report has no date
@@ -261,6 +296,7 @@ const syncLabel = document.getElementById('syncLabel');
 const stats = document.getElementById('stats');
 const notice = document.getElementById('notice');
 const contentWrap = document.getElementById('contentWrap');
+const chartsWrap = document.getElementById('chartsWrap');
 const toast = document.getElementById('toast');
 
 function showToast(msg, isError){
@@ -510,6 +546,97 @@ function renderTable(){
   });
 }
 
+// ---------- standards charts ----------
+// Close % standard depends on the active filters; the other three funnel
+// rates are fixed regardless of filter. When both Inventory and Lead
+// Source filters are set (not "All") at once, the lead-type standard wins
+// — Internet/Phone/Walk-in are the more specific, operative distinction —
+// and the active one is always labeled on the chart so it's never silently
+// ambiguous which standard is in effect.
+const CLOSE_STANDARD_BY_LEAD = {Internet: 15, Phone: 30, 'Walk-in': 50};
+const CLOSE_STANDARD_BY_INV = {New: 30, 'Used/Certified': 26};
+const CLOSE_STANDARD_ALL = 28;
+const SET_STANDARD = 30, SHOW_STANDARD = 80, SHOWN_SOLD_STANDARD = 50;
+
+function closeStandard(){
+  if(leadFilter !== 'all') return CLOSE_STANDARD_BY_LEAD[leadFilter];
+  if(invFilter !== 'all') return CLOSE_STANDARD_BY_INV[invFilter];
+  return CLOSE_STANDARD_ALL;
+}
+function closeStandardLabel(){
+  if(leadFilter !== 'all') return `${leadFilter} leads`;
+  if(invFilter !== 'all') return invFilter === 'New' ? 'New inventory' : 'Used inventory';
+  return 'all leads';
+}
+
+// rows: [{name, value}] (value already a percent, 0-100). Renders one
+// ranked horizontal bar per person, sorted descending, colored by whether
+// it clears `standard` — plus a labeled threshold line and a printed value
+// on every bar, so pass/fail is never carried by color alone.
+function barsHtml(rows, standard){
+  if(rows.length === 0) return `<div class="chart-empty">No data for this metric in range.</div>`;
+  const sorted = rows.slice().sort((a,b)=> b.value - a.value);
+  const max = Math.max(standard, ...sorted.map(r=>r.value)) * 1.15;
+  const thresholdPct = Math.min(100, (standard/max)*100);
+  const rows_ = sorted.map(r=>{
+    const barPct = Math.min(100, (r.value/max)*100);
+    const status = r.value >= standard ? 'good' : 'critical';
+    return `
+      <div class="bar-row">
+        <div class="bar-name">${r.name}</div>
+        <div class="bar-track">
+          <div class="bar-threshold" style="left:${thresholdPct}%"></div>
+          <div class="bar-fill ${status}" style="width:${barPct}%"></div>
+          <div class="bar-value" style="left:calc(${barPct}% + 6px)">${r.value}%</div>
+        </div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="threshold-header">
+      <div class="bar-name"></div>
+      <div class="bar-track"><div class="threshold-label" style="left:${thresholdPct}%">Standard ${standard}%</div></div>
+    </div>
+    ${rows_}`;
+}
+
+function renderCharts(){
+  const agg = aggregateBySalesperson(filteredRows());
+  if(agg.length === 0){ chartsWrap.innerHTML = ''; return; }
+
+  const closeRows = agg.map(a=>({name:a.salesperson, value: pct(a.soldInTimeFrame, a.goodLeads)})).filter(r=>r.value!=null);
+  const setRows = agg.map(a=>({name:a.salesperson, value: pct(a.apptsSet, a.goodLeads)})).filter(r=>r.value!=null);
+  const showRows = agg.map(a=>({name:a.salesperson, value: pct(a.apptsShown, a.apptsSet)})).filter(r=>r.value!=null);
+  const shownSoldRows = agg.map(a=>({name:a.salesperson, value: pct(a.apptsShownSold, a.apptsShown)})).filter(r=>r.value!=null);
+
+  chartsWrap.innerHTML = `
+    <div class="charts-card">
+      <h2>Performance vs. Standard</h2>
+      <p>Green clears the standard for the current filters; red falls short. Follows the same date range and filters as the table above.</p>
+      <div class="chart-block big">
+        <h3>Close %</h3>
+        <div class="chart-sub">Standard: ${closeStandard()}% (${closeStandardLabel()})</div>
+        ${barsHtml(closeRows, closeStandard())}
+      </div>
+      <div class="chart-grid-small">
+        <div class="chart-block">
+          <h3>Set %</h3>
+          <div class="chart-sub">Standard: ${SET_STANDARD}%</div>
+          ${barsHtml(setRows, SET_STANDARD)}
+        </div>
+        <div class="chart-block">
+          <h3>Show %</h3>
+          <div class="chart-sub">Standard: ${SHOW_STANDARD}%</div>
+          ${barsHtml(showRows, SHOW_STANDARD)}
+        </div>
+        <div class="chart-block">
+          <h3>Close of Shown %</h3>
+          <div class="chart-sub">Standard: ${SHOWN_SOLD_STANDARD}%</div>
+          ${barsHtml(shownSoldRows, SHOWN_SOLD_STANDARD)}
+        </div>
+      </div>
+    </div>`;
+}
+
 // Flags calendar dates in the selected range with zero rows across every
 // salesperson — skips the most recent 2 days, since those legitimately
 // might not have arrived yet rather than being a real gap.
@@ -540,6 +667,7 @@ function renderAll(){
   renderStats();
   renderGapNotice();
   renderTable();
+  renderCharts();
 }
 
 // ---------- toolbar: range presets ----------
