@@ -7,7 +7,7 @@ folder; a landing page at the root links between them.
 | Tab (what we call it) | Lives at | Status |
 |---|---|---|
 | **Used Car Recon** | `recon/index.html` | Live |
-| **Salesperson 30 Day Report** | *(not yet built)* | Planned |
+| **Salesperson 30 Day Report** | `salesperson-30-day/index.html` | Live |
 
 When referring to a specific dashboard in conversation, use the name from
 the **Tab** column above (e.g. "Used Car Recon") — it maps directly to a
@@ -26,8 +26,21 @@ current.
   thin data-access layer only: it reads the Inventory tab and reads/writes
   a dashboard-only "Dashboard Data" tab it creates automatically. It does
   not contain any of the stage/metrics logic — that all lives in
-  `recon/index.html`. (A future dashboard with its own backend would get
-  its own Apps Script project — this one is specific to Recon.)
+  `recon/index.html`.
+- **`salesperson-30-day/index.html`** — the Salesperson 30 Day Report
+  dashboard. Self-contained like Recon; all its date-range math and rate
+  calculations (close rate, appointment funnel) live here in JavaScript.
+- **`salesperson-30-day/apps-script/Code.gs`** — its backend, a separate
+  Apps Script Web App bound to its own dedicated Google Sheet (not the
+  Recon spreadsheet). It watches the same Google account's inbox for the
+  daily "Digital Retail Report" CSV email from VinSolutions and ingests it
+  automatically, plus serves the stored data to the dashboard and accepts
+  manual backfills. No metrics logic here either — thin data layer only,
+  same philosophy as Recon's backend.
+
+Each dashboard's backend is its own separate Apps Script project — they
+don't share code or a spreadsheet, even though this one happens to read
+from the same Google account's inbox as Recon's spreadsheet lives in.
 
 ## Adding a new dashboard tab
 
@@ -113,12 +126,90 @@ Now" is the on-demand replacement for the old manual CSV export/import step
 — no export step is needed anymore, since Apps Script reads the live sheet
 directly.
 
+## Salesperson 30 Day Report: one-time setup
+
+### 1. Configure the VinSolutions report
+
+In VinSolutions, the "Digital Retail Report" needs to be:
+- Scheduled to **email itself daily** to the same Google account the Recon
+  spreadsheet lives in (the account this dashboard's Apps Script will be
+  authorized under).
+- Date range set to **"Yesterday"** — not a rolling window. The report has
+  no date field of its own, so a multi-day window can't be decomposed back
+  into individual days; "Yesterday" gives one unambiguous day per email.
+- Columns configured to show **integer counts, not percentages** — Good
+  Leads, Sold in Time Frame, Appts Set, Appts Shown, Appts Shown Sold.
+  Percentages can't be correctly averaged across days (a weighted ratio
+  needs the underlying counts), so every rollup here is computed by the
+  dashboard from raw counts. If this ever gets switched back to
+  percentages, ingestion will keep running but every number it stores will
+  be wrong.
+
+Known limitation, accepted for now (see prior discussion if this changes):
+a lead marked "bad" a few days after the fact won't retroactively correct
+that day's already-stored numbers, since each day is only pulled once. If
+this drifts enough to matter in practice, revisit — either lag the daily
+pull by a few days, or fall back to a simpler view and rely on
+VinSolutions' own reporting for drill-down.
+
+### 2. Create the Google Sheet + Apps Script
+
+1. Create a new, **blank** Google Sheet (e.g. "Salesperson 30 Day Report
+   Data") in the same Google account that receives the report email. It
+   doesn't need any columns set up — the script creates its own tab.
+2. **Extensions → Apps Script**. Delete the default `Code.gs` contents and
+   paste in the contents of `salesperson-30-day/apps-script/Code.gs` from
+   this repo.
+3. In the function dropdown at the top of the editor, select
+   `installDailyTrigger` and click **Run** once. Authorize the requested
+   permissions (Gmail read, Sheets read/write, and running on a schedule).
+   This creates a daily 6am trigger that checks for the report email — a
+   one-time step, not something to repeat.
+4. **Deploy → New deployment** → type **Web app**. Set:
+   - **Execute as:** Me
+   - **Who has access:** Anyone
+5. Deploy, authorize again if prompted, and copy the resulting `/exec` URL.
+
+A tab named **"Daily Data"** will be created automatically the first time
+the script ingests or is asked for data. Don't create it manually.
+
+### 3. Set a password (do this right away)
+
+Reload the Sheet so the **Salesperson Report** menu appears, then click
+**Salesperson Report → Set/Change Access Password**. Same tradeoffs as
+Recon's password — see "Two different locks" below (this dashboard only
+has the one lock; there's no second PIN layer here since there's no
+editable field like Recon's on-site/off-site toggle).
+
+### 4. Point the dashboard at your deployment
+
+Open `salesperson-30-day/index.html` and set `APPS_SCRIPT_URL` near the top
+of the `<script>` block to the `/exec` URL from step 2.5 above. Commit and
+push.
+
+### 5. Backfill history (optional) or just wait
+
+The dashboard starts empty until the first daily email arrives and gets
+processed. To get data immediately instead of waiting:
+- Reload the Sheet and click **Salesperson Report → Run Import Now** — this
+  checks for any already-arrived report emails right away, rather than
+  waiting for the 6am trigger.
+- For older history predating this setup, use the dashboard's own
+  **＋ Backfill a Day** button: re-run the "Digital Retail Report" in
+  VinSolutions for a specific past date, paste its CSV in, and pick the
+  date it covers (see "Notes on the Salesperson data model" below for why
+  the date has to be entered manually).
+
 ## Redeploying Code.gs after edits
 
 Google Apps Script Web Apps don't auto-update from a saved script — after
-changing `Code.gs`, go to **Deploy → Manage deployments**, edit the active
-deployment, and choose **New version** to publish the change. The `/exec`
-URL stays the same, so nothing needs to change in `recon/index.html`.
+changing a `Code.gs` file (Recon's or the Salesperson Report's), go to
+**Deploy → Manage deployments** *in that same Apps Script project*, edit
+the active deployment, and choose **New version** to publish the change.
+The `/exec` URL stays the same, so nothing needs to change in the
+corresponding `index.html`. The two dashboards' backends are separate
+projects with separate deployments — redeploying one never affects the
+other.
 
 ## Notes on the Recon data model
 
@@ -138,7 +229,36 @@ URL stays the same, so nothing needs to change in `recon/index.html`.
   defaults by stage, etc.) is documented inline as comments in
   `recon/index.html` next to the code that implements each rule.
 
-## Two different locks — don't confuse them
+## Notes on the Salesperson 30 Day Report data model
+
+- One stored row per (date, salesperson, inventory type, lead type) — the
+  same breakdown VinSolutions exports. "Daily," "weekly," "monthly," and
+  custom-range views are all the same operation: sum the raw counts across
+  whatever rows fall in the selected date range, then compute rates from
+  those sums. Nothing is ever pre-aggregated or averaged as a percentage —
+  see the "why counts, not percentages" note at the top of
+  `salesperson-30-day/apps-script/Code.gs` for why that distinction matters.
+- Ingestion is idempotent by date: reprocessing the same day's email (or a
+  manual backfill for a date that already has data) replaces that date's
+  rows rather than duplicating them. A day's data is always whatever was
+  ingested *last* for that date.
+- The report has no date field of its own — the automated path infers the
+  date from the email's own send time (yesterday relative to when
+  VinSolutions sent it), which is why a manual backfill has to ask you
+  which date the pasted CSV covers rather than figuring it out itself.
+- The dashboard flags (but never auto-corrects) calendar dates with no data
+  on file, skipping the most recent 2 days since those may simply not have
+  arrived yet rather than being a real gap.
+- Good Leads and "Sold in Time Frame" aren't a strict subset of each other
+  — e.g. a walk-in sale can close without ever being logged as a formal
+  lead. Treat the derived close rate as a trend indicator, not a precise
+  "sold ÷ leads" audit figure.
+
+## Two different locks — don't confuse them (Used Car Recon only)
+
+The Salesperson 30 Day Report only has the one access password — there's
+no second, lower-stakes lock the way Recon has, since this dashboard has
+no editable field like Recon's on-site/off-site toggle to gate.
 
 - **Dashboard access password** (set via the Sheet's Recon Dashboard menu,
   checked in `Code.gs`): gates *viewing the data at all*. Enforced
