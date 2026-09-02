@@ -1,24 +1,53 @@
-# Lafayette Hyundai Recon Line Dashboard
+# Rohrman Automotive Dashboards
 
-A kanban-style dashboard for tracking used-vehicle reconditioning status,
-from acquisition through front-line-ready, plus a sold-history log with
-rolling performance metrics.
+A small portal of internal dashboards for Lafayette Hyundai, hosted on
+GitHub Pages. Each dashboard is its own self-contained page in its own
+folder; a landing page at the root links between them.
 
-- **`index.html`** — the dashboard. A single self-contained page, hosted on
-  GitHub Pages. All business logic (stage derivation, location defaults,
-  metrics, reconciliation rules) lives here, in JavaScript.
-- **`apps-script/Code.gs`** — the backend. A Google Apps Script Web App
-  bound to the dealership's inventory Google Sheet. It's a thin data-access
-  layer only: it reads the Inventory tab and reads/writes a
-  dashboard-only "Dashboard Data" tab it creates automatically. It does not
-  contain any of the stage/metrics logic — that all lives in `index.html`.
+| Tab (what we call it) | Lives at | Status |
+|---|---|---|
+| **Used Car Recon** | `recon/index.html` | Live |
+| **Salesperson 30 Day Report** | *(not yet built)* | Planned |
 
-The Google Sheet's Inventory tab is the single source of truth for vehicle
-identity and recon status. This dashboard never creates or edits inventory
-data on that tab — it only reads it and layers dashboard-only fields
-(on-site/off-site, assigned-to, notes) on top, stored in the second tab.
+When referring to a specific dashboard in conversation, use the name from
+the **Tab** column above (e.g. "Used Car Recon") — it maps directly to a
+folder, so there's no ambiguity about which page/code is meant. When a new
+dashboard gets built, add a row here with its folder so the mapping stays
+current.
 
-## One-time setup
+- **`index.html`** — the landing page. Lists available dashboards as cards,
+  and carries the same cross-dashboard nav strip (`.portal-tabs`) that
+  appears at the top of every dashboard page.
+- **`recon/index.html`** — the Used Car Recon dashboard. A single
+  self-contained page; all its business logic (stage derivation, location
+  defaults, metrics, reconciliation rules) lives here, in JavaScript.
+- **`apps-script/Code.gs`** — the Used Car Recon backend. A Google Apps
+  Script Web App bound to the dealership's inventory Google Sheet. It's a
+  thin data-access layer only: it reads the Inventory tab and reads/writes
+  a dashboard-only "Dashboard Data" tab it creates automatically. It does
+  not contain any of the stage/metrics logic — that all lives in
+  `recon/index.html`. (A future dashboard with its own backend would get
+  its own Apps Script project — this one is specific to Recon.)
+
+## Adding a new dashboard tab
+
+1. Create a new folder at the repo root (e.g. `salesperson-30-day/`) with
+   its own self-contained `index.html` — same pattern as `recon/`: inline
+   CSS/JS, no build step, talks to its own backend (if any) via an absolute
+   URL so the file can be moved around freely.
+2. Copy the `.portal-tabs` nav block from `recon/index.html` (or this
+   file's own copy in `index.html`) into the new page, marking its own tab
+   `active` instead of Used Car Recon's.
+3. Update the nav block in **every** existing page (`index.html` and every
+   dashboard's `index.html`) to add the new tab — there's no shared
+   template, so each copy has to be edited individually.
+4. Add a row to the table at the top of this README.
+
+No changes to GitHub Pages settings are needed for any of this — Pages
+already serves the whole repo from this branch's root, so a new folder is
+live the moment it's pushed.
+
+## Used Car Recon: one-time setup
 
 ### 1. Google Sheet + Apps Script
 
@@ -58,7 +87,7 @@ should have access — it's a single shared password, not individual logins.
 
 ### 3. Point the dashboard at your deployment
 
-Open `index.html` in this repo and find this line near the top of the
+Open `recon/index.html` in this repo and find this line near the top of the
 `<script>` block:
 
 ```js
@@ -71,26 +100,27 @@ push.
 ### 4. GitHub Pages
 
 In the repo's **Settings → Pages**, set the source to deploy from this
-branch's root. GitHub will serve `index.html` at the resulting Pages URL.
+branch's root. GitHub serves the whole repo — the landing page at `/`, and
+Used Car Recon at `/recon/`.
 
 ### 5. First sync
 
-Open the published Pages URL, enter the password from step 2, then click
-**⇪ Sync Now**. This pulls every row
-from the Inventory tab, applies the same stage-derivation and reconciliation
-rules the dashboard has always used, and saves the result to the Dashboard
-Data tab. From then on, "Sync Now" is the on-demand replacement for the old
-manual CSV export/import step — no export step is needed anymore, since
-Apps Script reads the live sheet directly.
+Open the published Recon dashboard, enter the password from step 2, then
+click **⇪ Sync Now**. This pulls every row from the Inventory tab, applies
+the same stage-derivation and reconciliation rules the dashboard has always
+used, and saves the result to the Dashboard Data tab. From then on, "Sync
+Now" is the on-demand replacement for the old manual CSV export/import step
+— no export step is needed anymore, since Apps Script reads the live sheet
+directly.
 
 ## Redeploying Code.gs after edits
 
 Google Apps Script Web Apps don't auto-update from a saved script — after
 changing `Code.gs`, go to **Deploy → Manage deployments**, edit the active
 deployment, and choose **New version** to publish the change. The `/exec`
-URL stays the same, so nothing needs to change in `index.html`.
+URL stays the same, so nothing needs to change in `recon/index.html`.
 
-## Notes on the data model
+## Notes on the Recon data model
 
 - Matching between the Inventory sheet and the dashboard is always by
   `Stock #`.
@@ -105,8 +135,8 @@ URL stays the same, so nothing needs to change in `index.html`.
 - A Stock # that drops out of the Inventory sheet is never silently
   deleted — it's flagged in a notice banner on the next sync.
 - Full behavioral spec (stage derivation order, metrics thresholds, on-site
-  defaults by stage, etc.) is documented inline as comments in `index.html`
-  next to the code that implements each rule.
+  defaults by stage, etc.) is documented inline as comments in
+  `recon/index.html` next to the code that implements each rule.
 
 ## Two different locks — don't confuse them
 
@@ -115,12 +145,13 @@ URL stays the same, so nothing needs to change in `index.html`.
   server-side — Apps Script refuses to return inventory or dashboard data
   without the right password, regardless of what the browser sends. This is
   real access control, and it's the one this section is about.
-- **Location-edit PIN** (default `4817`, set as `EDIT_PIN` in `index.html`):
-  a separate, much lower-stakes lock that only gates the On-Site/Off-Site
-  toggle for people who *already* passed the access password above. It's a
-  convenience speed bump only, checked in the browser and visible to anyone
-  who views page source — it's meant to slow down accidental taps from the
-  sales floor, not to stop a deliberate bypass.
+- **Location-edit PIN** (default `4817`, set as `EDIT_PIN` in
+  `recon/index.html`): a separate, much lower-stakes lock that only gates
+  the On-Site/Off-Site toggle for people who *already* passed the access
+  password above. It's a convenience speed bump only, checked in the
+  browser and visible to anyone who views page source — it's meant to slow
+  down accidental taps from the sales floor, not to stop a deliberate
+  bypass.
 
 **Limitations of the access password worth knowing:** it's one shared
 password for everyone (not individual logins), there's no lockout after
