@@ -823,7 +823,10 @@ function renderStats(){
   const avgDays = withRO.length ? Math.round(withRO.reduce((s,v)=>s+daysSince(v.toServiceDate),0)/withRO.length) : null;
   const withDetail = all.filter(v=>v.stage==='detail' && v.toDetailDate);
   const avgDetailDays = withDetail.length ? Math.round(withDetail.reduce((s,v)=>s+daysSince(v.toDetailDate),0)/withDetail.length) : null;
-  const overThreshold = all.filter(v=>daysSince(stageAnchorDate(v) || v.stageEnteredAt)>=6).length;
+  // Active board only — a Front Line Ready vehicle isn't "stalled," it's
+  // finished and just waiting to sell, and has its own separate "days to
+  // online" badge instead of this clock.
+  const overThreshold = all.filter(v=>v.stage!=='ready' && daysSince(stageAnchorDate(v) || v.stageEnteredAt)>=6).length;
 
   // Front-Line Ready vs Total: red below 80%, green at 80% or above.
   // With no vehicles on the board yet, there's nothing to grade — stays neutral.
